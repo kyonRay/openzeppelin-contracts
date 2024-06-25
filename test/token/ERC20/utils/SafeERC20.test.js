@@ -1,6 +1,6 @@
-const { ethers } = require('hardhat');
+const { ethers, network } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../../helpers/fb-deploy-helper');
 
 const name = 'ERC20Mock';
 const symbol = 'ERC20Mock';
@@ -10,18 +10,18 @@ const data = '0x12345678';
 async function fixture() {
   const [hasNoCode, owner, receiver, spender, other] = await ethers.getSigners();
 
-  const mock = await ethers.deployContract('$SafeERC20');
-  const erc20ReturnFalseMock = await ethers.deployContract('$ERC20ReturnFalseMock', [name, symbol]);
-  const erc20ReturnTrueMock = await ethers.deployContract('$ERC20', [name, symbol]); // default implementation returns true
-  const erc20NoReturnMock = await ethers.deployContract('$ERC20NoReturnMock', [name, symbol]);
-  const erc20ForceApproveMock = await ethers.deployContract('$ERC20ForceApproveMock', [name, symbol]);
-  const erc1363Mock = await ethers.deployContract('$ERC1363', [name, symbol]);
-  const erc1363ReturnFalseOnErc20Mock = await ethers.deployContract('$ERC1363ReturnFalseOnERC20Mock', [name, symbol]);
-  const erc1363ReturnFalseMock = await ethers.deployContract('$ERC1363ReturnFalseMock', [name, symbol]);
-  const erc1363NoReturnMock = await ethers.deployContract('$ERC1363NoReturnMock', [name, symbol]);
-  const erc1363ForceApproveMock = await ethers.deployContract('$ERC1363ForceApproveMock', [name, symbol]);
-  const erc1363Receiver = await ethers.deployContract('$ERC1363ReceiverMock');
-  const erc1363Spender = await ethers.deployContract('$ERC1363SpenderMock');
+  const mock = await deployFBContract('$SafeERC20');
+  const erc20ReturnFalseMock = await deployFBContract('$ERC20ReturnFalseMock', [name, symbol]);
+  const erc20ReturnTrueMock = await deployFBContract('$ERC20', [name, symbol]); // default implementation returns true
+  const erc20NoReturnMock = await deployFBContract('$ERC20NoReturnMock', [name, symbol]);
+  const erc20ForceApproveMock = await deployFBContract('$ERC20ForceApproveMock', [name, symbol]);
+  const erc1363Mock = await deployFBContract('$ERC1363', [name, symbol]);
+  const erc1363ReturnFalseOnErc20Mock = await deployFBContract('$ERC1363ReturnFalseOnERC20Mock', [name, symbol]);
+  const erc1363ReturnFalseMock = await deployFBContract('$ERC1363ReturnFalseMock', [name, symbol]);
+  const erc1363NoReturnMock = await deployFBContract('$ERC1363NoReturnMock', [name, symbol]);
+  const erc1363ForceApproveMock = await deployFBContract('$ERC1363ForceApproveMock', [name, symbol]);
+  const erc1363Receiver = await deployFBContract('$ERC1363ReceiverMock');
+  const erc1363Spender = await deployFBContract('$ERC1363SpenderMock');
 
   return {
     hasNoCode,
@@ -46,43 +46,45 @@ async function fixture() {
 
 describe('SafeERC20', function () {
   before(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
-  describe('with address that has no contract code', function () {
-    beforeEach(async function () {
-      this.token = this.hasNoCode;
-    });
+  // FIXME)): call EOA will call dynamic precompiled in FB
+  if (network.name === 'hardhat') {
+    describe('with address that has no contract code', function () {
+      beforeEach(async function () {
+        this.token = this.hasNoCode;
+      });
 
-    it('reverts on transfer', async function () {
-      await expect(this.mock.$safeTransfer(this.token, this.receiver, 0n))
-        .to.be.revertedWithCustomError(this.mock, 'AddressEmptyCode')
-        .withArgs(this.token);
-    });
+      it('reverts on transfer', async function () {
+        await expect(this.mock.$safeTransfer(this.token, this.receiver, 0n))
+          .to.be.revertedWithCustomError(this.mock, 'AddressEmptyCode')
+          .withArgs(this.token);
+      });
 
-    it('reverts on transferFrom', async function () {
-      await expect(this.mock.$safeTransferFrom(this.token, this.mock, this.receiver, 0n))
-        .to.be.revertedWithCustomError(this.mock, 'AddressEmptyCode')
-        .withArgs(this.token);
-    });
+      it('reverts on transferFrom', async function () {
+        await expect(this.mock.$safeTransferFrom(this.token, this.mock, this.receiver, 0n))
+          .to.be.revertedWithCustomError(this.mock, 'AddressEmptyCode')
+          .withArgs(this.token);
+      });
 
-    it('reverts on increaseAllowance', async function () {
-      // Call to 'token.allowance' does not return any data, resulting in a decoding error (revert without reason)
-      await expect(this.mock.$safeIncreaseAllowance(this.token, this.spender, 0n)).to.be.revertedWithoutReason();
-    });
+      it('reverts on increaseAllowance', async function () {
+        // Call to 'token.allowance' does not return any data, resulting in a decoding error (revert without reason)
+        await expect(this.mock.$safeIncreaseAllowance(this.token, this.spender, 0n)).to.be.revertedWithoutReason();
+      });
 
-    it('reverts on decreaseAllowance', async function () {
-      // Call to 'token.allowance' does not return any data, resulting in a decoding error (revert without reason)
-      await expect(this.mock.$safeDecreaseAllowance(this.token, this.spender, 0n)).to.be.revertedWithoutReason();
-    });
+      it('reverts on decreaseAllowance', async function () {
+        // Call to 'token.allowance' does not return any data, resulting in a decoding error (revert without reason)
+        await expect(this.mock.$safeDecreaseAllowance(this.token, this.spender, 0n)).to.be.revertedWithoutReason();
+      });
 
-    it('reverts on forceApprove', async function () {
-      await expect(this.mock.$forceApprove(this.token, this.spender, 0n))
-        .to.be.revertedWithCustomError(this.mock, 'AddressEmptyCode')
-        .withArgs(this.token);
+      it('reverts on forceApprove', async function () {
+        await expect(this.mock.$forceApprove(this.token, this.spender, 0n))
+          .to.be.revertedWithCustomError(this.mock, 'AddressEmptyCode')
+          .withArgs(this.token);
+      });
     });
-  });
-
+  }
   describe('with token that returns false on all calls', function () {
     beforeEach(async function () {
       this.token = this.erc20ReturnFalseMock;

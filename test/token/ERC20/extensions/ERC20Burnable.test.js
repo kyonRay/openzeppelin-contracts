@@ -1,6 +1,6 @@
-const { ethers } = require('hardhat');
+const { ethers, network } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../../helpers/fb-deploy-helper');
 
 const name = 'My Token';
 const symbol = 'MTKN';
@@ -9,7 +9,7 @@ const initialBalance = 1000n;
 async function fixture() {
   const [owner, burner] = await ethers.getSigners();
 
-  const token = await ethers.deployContract('$ERC20Burnable', [name, symbol], owner);
+  const token = await deployFBContract('$ERC20Burnable', [name, symbol], owner);
   await token.$_mint(owner, initialBalance);
 
   return { owner, burner, token, initialBalance };
@@ -17,7 +17,7 @@ async function fixture() {
 
 describe('ERC20Burnable', function () {
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
   describe('burn', function () {
@@ -36,11 +36,16 @@ describe('ERC20Burnable', function () {
       ]) {
         describe(title, function () {
           beforeEach(async function () {
+            this.initValueOfOwner = await this.token.balanceOf(this.owner);
             this.tx = await this.token.connect(this.owner).burn(value);
           });
 
           it('burns the requested value', async function () {
-            await expect(this.tx).to.changeTokenBalance(this.token, this.owner, -value);
+            if (network.name === 'hardhat') {
+              await expect(this.tx).to.changeTokenBalance(this.token, this.owner, -value);
+            } else {
+              expect(await this.token.balanceOf(this.owner)).to.equal(this.initValueOfOwner - value);
+            }
           });
 
           it('emits a transfer event', async function () {
@@ -83,12 +88,17 @@ describe('ERC20Burnable', function () {
           const originalAllowance = value * 3n;
 
           beforeEach(async function () {
+            this.initValueOfOwner = await this.token.balanceOf(this.owner);
             await this.token.connect(this.owner).approve(this.burner, originalAllowance);
             this.tx = await this.token.connect(this.burner).burnFrom(this.owner, value);
           });
 
           it('burns the requested value', async function () {
-            await expect(this.tx).to.changeTokenBalance(this.token, this.owner, -value);
+            if (network.name === 'hardhat') {
+              await expect(this.tx).to.changeTokenBalance(this.token, this.owner, -value);
+            } else {
+              expect(await this.token.balanceOf(this.owner)).to.equal(this.initValueOfOwner - value);
+            }
           });
 
           it('decrements allowance', async function () {

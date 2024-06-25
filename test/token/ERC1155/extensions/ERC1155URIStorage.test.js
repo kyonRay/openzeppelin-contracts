@@ -1,6 +1,6 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../../helpers/fb-deploy-helper');
 
 const erc1155Uri = 'https://token.com/nfts/';
 const baseUri = 'https://token.com/';
@@ -12,15 +12,15 @@ describe('ERC1155URIStorage', function () {
     async function fixture() {
       const [holder] = await ethers.getSigners();
 
-      const token = await ethers.deployContract('$ERC1155URIStorage', [erc1155Uri]);
+      const token = await deployFBContract('$ERC1155URIStorage', [erc1155Uri]);
       await token.$_setBaseURI(baseUri);
       await token.$_mint(holder, tokenId, value, '0x');
 
       return { token, holder };
     }
 
-    beforeEach(async function () {
-      Object.assign(this, await loadFixture(fixture));
+    before(async function () {
+      Object.assign(this, await fixture());
     });
 
     it('can request the token uri, returning the erc1155 uri if no token uri was set', async function () {
@@ -43,14 +43,14 @@ describe('ERC1155URIStorage', function () {
     async function fixture() {
       const [holder] = await ethers.getSigners();
 
-      const token = await ethers.deployContract('$ERC1155URIStorage', ['']);
+      const token = await deployFBContract('$ERC1155URIStorage', ['']);
       await token.$_mint(holder, tokenId, value, '0x');
 
       return { token, holder };
     }
 
-    beforeEach(async function () {
-      Object.assign(this, await loadFixture(fixture));
+    before(async function () {
+      Object.assign(this, await fixture());
     });
 
     it('can request the token uri, returning an empty string if no token uri was set', async function () {

@@ -1,10 +1,11 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
+
 const { PANIC_CODES } = require('@nomicfoundation/hardhat-chai-matchers/panic');
 
 async function fixture() {
-  const mock = await ethers.deployContract('$DoubleEndedQueue');
+  const mock = await deployFBContract('$DoubleEndedQueue');
 
   /** Rebuild the content of the deque as a JS array. */
   const getContent = () =>
@@ -21,7 +22,7 @@ describe('DoubleEndedQueue', function () {
   const bytesD = coder.encode(['uint256'], [0x171717]);
 
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
   describe('when empty', function () {

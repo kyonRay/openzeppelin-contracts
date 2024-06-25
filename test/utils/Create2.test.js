@@ -1,11 +1,11 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../helpers/fb-deploy-helper');
 
 async function fixture() {
   const [deployer, other] = await ethers.getSigners();
 
-  const factory = await ethers.deployContract('$Create2');
+  const factory = await deployFBContract('$Create2');
 
   // Bytecode for deploying a contract that includes a constructor.
   // We use a vesting wallet, with 3 constructor arguments.
@@ -27,7 +27,7 @@ describe('Create2', function () {
   const saltHex = ethers.id(salt);
 
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
   describe('computeAddress', function () {

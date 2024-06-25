@@ -1,6 +1,6 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../helpers/fb-deploy-helper');
 
 const { min } = require('../helpers/math');
 const time = require('../helpers/time');
@@ -15,9 +15,9 @@ async function fixture() {
   const cliff = start + cliffDuration;
 
   const [sender, beneficiary] = await ethers.getSigners();
-  const mock = await ethers.deployContract('$VestingWalletCliff', [beneficiary, start, duration, cliffDuration]);
+  const mock = await deployFBContract('$VestingWalletCliff', [beneficiary, start, duration, cliffDuration]);
 
-  const token = await ethers.deployContract('$ERC20', ['Name', 'Symbol']);
+  const token = await deployFBContract('$ERC20', ['Name', 'Symbol']);
   await token.$_mint(mock, amount);
   await sender.sendTransaction({ to: mock, value: amount });
 
@@ -31,12 +31,12 @@ async function fixture() {
 
 describe('VestingWalletCliff', function () {
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
   it('rejects a larger cliff than vesting duration', async function () {
     await expect(
-      ethers.deployContract('$VestingWalletCliff', [this.beneficiary, this.start, this.duration, this.duration + 1n]),
+      deployFBContract('$VestingWalletCliff', [this.beneficiary, this.start, this.duration, this.duration + 1n]),
     )
       .revertedWithCustomError(this.mock, 'InvalidCliffDuration')
       .withArgs(this.duration + 1n, this.duration);

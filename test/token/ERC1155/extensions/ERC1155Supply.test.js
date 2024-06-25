@@ -1,10 +1,10 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../../helpers/fb-deploy-helper');
 
 async function fixture() {
   const [holder] = await ethers.getSigners();
-  const token = await ethers.deployContract('$ERC1155Supply', ['https://token-cdn-domain/{id}.json']);
+  const token = await deployFBContract('$ERC1155Supply', ['https://token-cdn-domain/{id}.json']);
   return { token, holder };
 }
 
@@ -15,7 +15,7 @@ describe('ERC1155Supply', function () {
   const secondTokenValue = 23n;
 
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
   describe('before mint', function () {

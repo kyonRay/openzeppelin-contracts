@@ -1,13 +1,13 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../helpers/fb-deploy-helper');
 
 async function fixture() {
   const [holder, alice, bruce] = await ethers.getSigners();
 
   const amount = 12_000n;
-  const helper = await ethers.deployContract('MulticallHelper');
-  const mock = await ethers.deployContract('$ERC20MulticallMock', ['name', 'symbol']);
+  const helper = await deployFBContract('MulticallHelper');
+  const mock = await deployFBContract('$ERC20MulticallMock', ['name', 'symbol']);
   await mock.$_mint(holder, amount);
 
   return { holder, alice, bruce, amount, mock, helper };
@@ -15,7 +15,7 @@ async function fixture() {
 
 describe('Multicall', function () {
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
   it('batches function calls', async function () {

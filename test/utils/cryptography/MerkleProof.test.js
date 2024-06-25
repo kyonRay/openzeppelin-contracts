@@ -1,19 +1,19 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 const { StandardMerkleTree } = require('@openzeppelin/merkle-tree');
 
 const toElements = str => str.split('').map(e => [e]);
 const hashPair = (a, b) => ethers.keccak256(Buffer.concat([a, b].sort(Buffer.compare)));
 
 async function fixture() {
-  const mock = await ethers.deployContract('$MerkleProof');
+  const mock = await deployFBContract('$MerkleProof');
   return { mock };
 }
 
 describe('MerkleProof', function () {
-  beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+  before(async function () {
+    Object.assign(this, await fixture());
   });
 
   describe('verify', function () {
