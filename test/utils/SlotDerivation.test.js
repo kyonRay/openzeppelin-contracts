@@ -1,18 +1,18 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../helpers/fb-deploy-helper');
 const { erc7201Slot } = require('../helpers/storage');
 const { generators } = require('../helpers/random');
 
 async function fixture() {
   const [account] = await ethers.getSigners();
-  const mock = await ethers.deployContract('$SlotDerivation');
+  const mock = await deployFBContract('$SlotDerivation');
   return { mock, account };
 }
 
 describe('SlotDerivation', function () {
-  beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+  before(async function () {
+    Object.assign(this, await fixture());
   });
 
   describe('namespaces', function () {

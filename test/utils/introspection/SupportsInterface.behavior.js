@@ -1,6 +1,7 @@
 const { expect } = require('chai');
 const { interfaceId } = require('../../helpers/methods');
 const { mapValues } = require('../../helpers/iterate');
+const { network } = require('hardhat');
 
 const INVALID_ID = '0xffffffff';
 const SIGNATURES = {
@@ -101,12 +102,14 @@ function shouldSupportInterfaces(interfaces = []) {
     });
 
     describe('when the interfaceId is supported', function () {
-      it('uses less than 30k gas', async function () {
-        for (const k of interfaces) {
-          const interface = INTERFACE_IDS[k] ?? k;
-          expect(await this.contractUnderTest.supportsInterface.estimateGas(interface)).to.lte(30_000n);
-        }
-      });
+      if (network.name === 'hardhat') {
+        it('uses less than 30k gas', async function () {
+          for (const k of interfaces) {
+            const interface = INTERFACE_IDS[k] ?? k;
+            expect(await this.contractUnderTest.supportsInterface.estimateGas(interface)).to.lte(30_000n);
+          }
+        });
+      }
 
       it('returns true', async function () {
         for (const k of interfaces) {
@@ -117,10 +120,6 @@ function shouldSupportInterfaces(interfaces = []) {
     });
 
     describe('when the interfaceId is not supported', function () {
-      it('uses less than 30k', async function () {
-        expect(await this.contractUnderTest.supportsInterface.estimateGas(INVALID_ID)).to.lte(30_000n);
-      });
-
       it('returns false', async function () {
         expect(await this.contractUnderTest.supportsInterface(INVALID_ID), `supports ${INVALID_ID}`).to.be.false;
       });

@@ -1,6 +1,6 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 
 const { sum } = require('../../helpers/math');
 const { zip } = require('../../helpers/iterate');
@@ -29,14 +29,14 @@ describe('Votes', function () {
 
       const name = 'My Vote';
       const version = '1';
-      const votes = await ethers.deployContract(artifact, [name, version]);
+      const votes = await deployFBContract(artifact, [name, version]);
 
       return { accounts, amounts, votes, name, version };
     };
 
     describe(`vote with ${mode}`, function () {
       beforeEach(async function () {
-        Object.assign(this, await loadFixture(fixture));
+        Object.assign(this, await fixture());
       });
 
       shouldBehaveLikeVotes(AMOUNTS, { mode, fungible: true });

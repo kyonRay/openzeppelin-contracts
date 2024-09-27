@@ -1,6 +1,6 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../../helpers/fb-deploy-helper');
 
 const { shouldBehaveLikeERC2981 } = require('../../common/ERC2981.behavior');
 
@@ -15,7 +15,7 @@ const salePrice = 1000n;
 async function fixture() {
   const [account1, account2, recipient] = await ethers.getSigners();
 
-  const token = await ethers.deployContract('$ERC721Royalty', [name, symbol]);
+  const token = await deployFBContract('$ERC721Royalty', [name, symbol]);
   await token.$_mint(account1, tokenId1);
   await token.$_mint(account1, tokenId2);
 
@@ -26,7 +26,7 @@ describe('ERC721Royalty', function () {
   beforeEach(async function () {
     Object.assign(
       this,
-      await loadFixture(fixture),
+      await fixture(),
       { tokenId1, tokenId2, royalty, salePrice }, // set for behavior tests
     );
   });

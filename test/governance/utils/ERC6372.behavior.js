@@ -9,7 +9,9 @@ function shouldBehaveLikeERC6372(mode = 'blocknumber') {
     });
 
     it('clock is correct', async function () {
-      expect(await this.mock.clock()).to.equal(await time.clock[mode]());
+      const c = await this.mock.clock();
+      const e = await time.clock[mode]();
+      expect(c).to.equal(e);
     });
 
     it('CLOCK_MODE is correct', async function () {

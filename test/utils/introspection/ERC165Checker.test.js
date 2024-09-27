@@ -1,6 +1,5 @@
-const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 
 const DUMMY_ID = '0xdeadbeef';
 const DUMMY_ID_2 = '0xcafebabe';
@@ -10,17 +9,17 @@ const DUMMY_UNSUPPORTED_ID_2 = '0xbaadcafe';
 const DUMMY_ACCOUNT = '0x1111111111111111111111111111111111111111';
 
 async function fixture() {
-  return { mock: await ethers.deployContract('$ERC165Checker') };
+  return { mock: await deployFBContract('$ERC165Checker') };
 }
 
 describe('ERC165Checker', function () {
-  beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+  before(async function () {
+    Object.assign(this, await fixture());
   });
 
   describe('ERC165 missing return data', function () {
-    before(async function () {
-      this.target = await ethers.deployContract('ERC165MissingData');
+    beforeEach(async function () {
+      this.target = await deployFBContract('ERC165MissingData');
     });
 
     it('does not support ERC165', async function () {
@@ -46,7 +45,7 @@ describe('ERC165Checker', function () {
 
   describe('ERC165 malicious return data', function () {
     beforeEach(async function () {
-      this.target = await ethers.deployContract('ERC165MaliciousData');
+      this.target = await deployFBContract('ERC165MaliciousData');
     });
 
     it('does not support ERC165', async function () {
@@ -72,7 +71,7 @@ describe('ERC165Checker', function () {
 
   describe('ERC165 not supported', function () {
     beforeEach(async function () {
-      this.target = await ethers.deployContract('ERC165NotSupported');
+      this.target = await deployFBContract('ERC165NotSupported');
     });
 
     it('does not support ERC165', async function () {
@@ -98,7 +97,7 @@ describe('ERC165Checker', function () {
 
   describe('ERC165 supported', function () {
     beforeEach(async function () {
-      this.target = await ethers.deployContract('ERC165InterfacesSupported', [[]]);
+      this.target = await deployFBContract('ERC165InterfacesSupported', [[]]);
     });
 
     it('supports ERC165', async function () {
@@ -124,7 +123,7 @@ describe('ERC165Checker', function () {
 
   describe('ERC165 and single interface supported', function () {
     beforeEach(async function () {
-      this.target = await ethers.deployContract('ERC165InterfacesSupported', [[DUMMY_ID]]);
+      this.target = await deployFBContract('ERC165InterfacesSupported', [[DUMMY_ID]]);
     });
 
     it('supports ERC165', async function () {
@@ -151,7 +150,7 @@ describe('ERC165Checker', function () {
   describe('ERC165 and many interfaces supported', function () {
     const supportedInterfaces = [DUMMY_ID, DUMMY_ID_2, DUMMY_ID_3];
     beforeEach(async function () {
-      this.target = await ethers.deployContract('ERC165InterfacesSupported', [supportedInterfaces]);
+      this.target = await deployFBContract('ERC165InterfacesSupported', [supportedInterfaces]);
     });
 
     it('supports ERC165', async function () {
@@ -231,7 +230,7 @@ describe('ERC165Checker', function () {
   });
 
   it('Return bomb resistance', async function () {
-    this.target = await ethers.deployContract('ERC165ReturnBombMock');
+    this.target = await deployFBContract('ERC165ReturnBombMock');
 
     const { gasUsed: gasUsed1 } = await this.mock.$supportsInterface.send(this.target, DUMMY_ID).then(tx => tx.wait());
     expect(gasUsed1).to.be.lessThan(120_000n); // 3*30k + 21k + some margin

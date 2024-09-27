@@ -1,17 +1,16 @@
-const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../helpers/fb-deploy-helper');
 
 for (const variant of ['', 'Transient']) {
   describe(`Reentrancy${variant}Guard`, function () {
     async function fixture() {
       const name = `Reentrancy${variant}Mock`;
-      const mock = await ethers.deployContract(name);
+      const mock = await deployFBContract(name);
       return { name, mock };
     }
 
-    beforeEach(async function () {
-      Object.assign(this, await loadFixture(fixture));
+    before(async function () {
+      Object.assign(this, await fixture());
     });
 
     it('nonReentrant function can be called', async function () {
@@ -21,7 +20,7 @@ for (const variant of ['', 'Transient']) {
     });
 
     it('does not allow remote callback', async function () {
-      const attacker = await ethers.deployContract('ReentrancyAttack');
+      const attacker = await deployFBContract('ReentrancyAttack');
       await expect(this.mock.countAndCall(attacker)).to.be.revertedWith('ReentrancyAttack: failed call');
     });
 

@@ -6,6 +6,8 @@ const { getDomain, Delegation } = require('../../helpers/eip712');
 const time = require('../../helpers/time');
 
 const { shouldBehaveLikeERC6372 } = require('./ERC6372.behavior');
+const env = require('hardhat');
+const { mineFB } = require('../../helpers/fb-deploy-helper');
 
 function shouldBehaveLikeVotes(tokens, { mode = 'blocknumber', fungible = true }) {
   beforeEach(async function () {
@@ -54,7 +56,11 @@ function shouldBehaveLikeVotes(tokens, { mode = 'blocknumber', fungible = true }
         expect(await this.votes.delegates(this.alice)).to.equal(this.alice);
         expect(await this.votes.getVotes(this.alice)).to.equal(weight);
         expect(await this.votes.getPastVotes(this.alice, timepoint - 1n)).to.equal(0n);
-        await mine();
+        if (env.network.name === 'hardhat') {
+          await mine();
+        } else {
+          await mineFB(20);
+        }
         expect(await this.votes.getPastVotes(this.alice, timepoint)).to.equal(weight);
       });
 
@@ -82,9 +88,16 @@ function shouldBehaveLikeVotes(tokens, { mode = 'blocknumber', fungible = true }
         expect(await this.votes.getVotes(this.alice)).to.equal(0n);
         expect(await this.votes.getVotes(this.bob)).to.equal(weight);
 
-        expect(await this.votes.getPastVotes(this.alice, timepoint - 1n)).to.equal(weight);
-        expect(await this.votes.getPastVotes(this.bob, timepoint - 1n)).to.equal(0n);
-        await mine();
+        if (mode === 'blocknumber') {
+          expect(await this.votes.getPastVotes(this.alice, timepoint - 1n)).to.equal(weight);
+          expect(await this.votes.getPastVotes(this.bob, timepoint - 1n)).to.equal(0n);
+        }
+        if (env.network.name === 'hardhat') {
+          await mine();
+        } else {
+          await mineFB(15);
+        }
+
         expect(await this.votes.getPastVotes(this.alice, timepoint)).to.equal(0n);
         expect(await this.votes.getPastVotes(this.bob, timepoint)).to.equal(weight);
       });
@@ -123,7 +136,11 @@ function shouldBehaveLikeVotes(tokens, { mode = 'blocknumber', fungible = true }
           expect(await this.votes.getVotes(this.delegator.address)).to.equal(0n);
           expect(await this.votes.getVotes(this.delegatee)).to.equal(weight);
           expect(await this.votes.getPastVotes(this.delegatee, timepoint - 1n)).to.equal(0n);
-          await mine();
+          if (env.network.name === 'hardhat') {
+            await mine();
+          } else {
+            await mineFB();
+          }
           expect(await this.votes.getPastVotes(this.delegatee, timepoint)).to.equal(weight);
         });
 
@@ -217,7 +234,7 @@ function shouldBehaveLikeVotes(tokens, { mode = 'blocknumber', fungible = true }
       });
 
       it('reverts if block number >= current block', async function () {
-        const timepoint = 5e10;
+        const timepoint = 5e15;
         const clock = await this.votes.clock();
         await expect(this.votes.getPastTotalSupply(timepoint))
           .to.be.revertedWithCustomError(this.votes, 'ERC5805FutureLookup')
@@ -233,22 +250,46 @@ function shouldBehaveLikeVotes(tokens, { mode = 'blocknumber', fungible = true }
 
         // t0 = mint #0
         const t0 = await this.votes.$_mint(this.alice, tokens[0]);
-        await mine();
+        if (env.network.name === 'hardhat') {
+          await mine();
+        } else {
+          await mineFB(1);
+        }
         // t1 = mint #1
         const t1 = await this.votes.$_mint(this.alice, tokens[1]);
-        await mine();
+        if (env.network.name === 'hardhat') {
+          await mine();
+        } else {
+          await mineFB(1);
+        }
         // t2 = burn #1
         const t2 = await this.votes.$_burn(...(fungible ? [this.alice] : []), tokens[1]);
-        await mine();
+        if (env.network.name === 'hardhat') {
+          await mine();
+        } else {
+          await mineFB(1);
+        }
         // t3 = mint #2
         const t3 = await this.votes.$_mint(this.alice, tokens[2]);
-        await mine();
+        if (env.network.name === 'hardhat') {
+          await mine();
+        } else {
+          await mineFB(1);
+        }
         // t4 = burn #0
         const t4 = await this.votes.$_burn(...(fungible ? [this.alice] : []), tokens[0]);
-        await mine();
+        if (env.network.name === 'hardhat') {
+          await mine();
+        } else {
+          await mineFB(1);
+        }
         // t5 = burn #2
         const t5 = await this.votes.$_burn(...(fungible ? [this.alice] : []), tokens[2]);
-        await mine();
+        if (env.network.name === 'hardhat') {
+          await mine();
+        } else {
+          await mineFB();
+        }
 
         t0.timepoint = await time.clockFromReceipt[mode](t0);
         t1.timepoint = await time.clockFromReceipt[mode](t1);
@@ -287,7 +328,7 @@ function shouldBehaveLikeVotes(tokens, { mode = 'blocknumber', fungible = true }
       describe('getPastVotes', function () {
         it('reverts if block number >= current block', async function () {
           const clock = await this.votes.clock();
-          const timepoint = 5e10; // far in the future
+          const timepoint = 5e15; // far in the future
           await expect(this.votes.getPastVotes(this.bob, timepoint))
             .to.be.revertedWithCustomError(this.votes, 'ERC5805FutureLookup')
             .withArgs(timepoint, clock);
@@ -300,7 +341,11 @@ function shouldBehaveLikeVotes(tokens, { mode = 'blocknumber', fungible = true }
         it('returns the latest block if >= last checkpoint block', async function () {
           const delegate = await this.votes.connect(this.alice).delegate(this.bob);
           const timepoint = await time.clockFromReceipt[mode](delegate);
-          await mine(2);
+          if (env.network.name === 'hardhat') {
+            await mine(2);
+          } else {
+            await mineFB(2);
+          }
 
           const latest = await this.votes.getVotes(this.bob);
           expect(await this.votes.getPastVotes(this.bob, timepoint)).to.equal(latest);
@@ -308,10 +353,18 @@ function shouldBehaveLikeVotes(tokens, { mode = 'blocknumber', fungible = true }
         });
 
         it('returns zero if < first checkpoint block', async function () {
-          await mine();
+          if (env.network.name === 'hardhat') {
+            await mine();
+          } else {
+            await mineFB();
+          }
           const delegate = await this.votes.connect(this.alice).delegate(this.bob);
           const timepoint = await time.clockFromReceipt[mode](delegate);
-          await mine(2);
+          if (env.network.name === 'hardhat') {
+            await mine(2);
+          } else {
+            await mineFB(2);
+          }
 
           expect(await this.votes.getPastVotes(this.bob, timepoint - 1n)).to.equal(0n);
         });

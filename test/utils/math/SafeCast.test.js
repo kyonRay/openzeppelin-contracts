@@ -1,17 +1,17 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 
 const { range } = require('../../helpers/iterate');
 
 async function fixture() {
-  const mock = await ethers.deployContract('$SafeCast');
+  const mock = await deployFBContract('$SafeCast');
   return { mock };
 }
 
 describe('SafeCast', function () {
-  beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+  before(async function () {
+    Object.assign(this, await fixture());
   });
 
   for (const bits of range(8, 256, 8).map(ethers.toBigInt)) {

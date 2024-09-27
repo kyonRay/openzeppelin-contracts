@@ -1,6 +1,6 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 
 const { min, max } = require('../../helpers/math');
 
@@ -10,13 +10,13 @@ async function testCommutative(fn, lhs, rhs, expected, ...extra) {
 }
 
 async function fixture() {
-  const mock = await ethers.deployContract('$SignedMath');
+  const mock = await deployFBContract('$SignedMath');
   return { mock };
 }
 
 describe('SignedMath', function () {
-  beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+  before(async function () {
+    Object.assign(this, await fixture());
   });
 
   describe('max', function () {

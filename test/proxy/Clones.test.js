@@ -1,38 +1,39 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
-
 const shouldBehaveLikeClone = require('./Clones.behaviour');
+const { deployFBContract } = require('../helpers/fb-deploy-helper');
 
 async function fixture() {
   const [deployer] = await ethers.getSigners();
 
-  const factory = await ethers.deployContract('$Clones');
-  const implementation = await ethers.deployContract('DummyImplementation');
+  const factory = await deployFBContract('$Clones');
+  const implementation = await deployFBContract('DummyImplementation');
 
   const newClone = async (opts = {}) => {
-    const clone = await factory.$clone.staticCall(implementation).then(address => implementation.attach(address));
-    const tx = await (opts.deployValue
+    const clone = await (opts.deployValue
       ? factory.$clone(implementation, ethers.Typed.uint256(opts.deployValue))
-      : factory.$clone(implementation));
+      : factory.$clone(implementation)
+    )
+      .then(tx => (this.tx = tx.wait()))
+      .then(receipt => implementation.attach('0x' + receipt.logs[0].data.substring(26)));
     if (opts.initData || opts.initValue) {
       await deployer.sendTransaction({ to: clone, value: opts.initValue ?? 0n, data: opts.initData ?? '0x' });
     }
-    return Object.assign(clone, { deploymentTransaction: () => tx });
+    return Object.assign(clone, { deploymentTransaction: () => this.tx });
   };
 
   const newCloneDeterministic = async (opts = {}) => {
     const salt = opts.salt ?? ethers.randomBytes(32);
-    const clone = await factory.$cloneDeterministic
-      .staticCall(implementation, salt)
-      .then(address => implementation.attach(address));
-    const tx = await (opts.deployValue
+    const clone = await (opts.deployValue
       ? factory.$cloneDeterministic(implementation, salt, ethers.Typed.uint256(opts.deployValue))
-      : factory.$cloneDeterministic(implementation, salt));
+      : factory.$cloneDeterministic(implementation, salt)
+    )
+      .then(tx => (this.tx = tx.wait()))
+      .then(receipt => implementation.attach('0x' + receipt.logs[0].data.substring(26)));
     if (opts.initData || opts.initValue) {
       await deployer.sendTransaction({ to: clone, value: opts.initValue ?? 0n, data: opts.initData ?? '0x' });
     }
-    return Object.assign(clone, { deploymentTransaction: () => tx });
+    return Object.assign(clone, { deploymentTransaction: () => this.tx });
   };
 
   return { deployer, factory, implementation, newClone, newCloneDeterministic };
@@ -40,7 +41,7 @@ async function fixture() {
 
 describe('Clones', function () {
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
   describe('clone', function () {

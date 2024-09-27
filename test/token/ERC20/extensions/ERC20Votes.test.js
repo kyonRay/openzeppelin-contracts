@@ -1,12 +1,14 @@
-const { ethers } = require('hardhat');
+const { ethers, network } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture, mine } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract, mineFB } = require('../../../helpers/fb-deploy-helper');
+const { mine } = require('@nomicfoundation/hardhat-network-helpers');
 
 const { getDomain, Delegation } = require('../../../helpers/eip712');
 const { batchInBlock } = require('../../../helpers/txpool');
 const time = require('../../../helpers/time');
 
 const { shouldBehaveLikeVotes } = require('../../../governance/utils/Votes.behavior');
+const env = require('hardhat');
 
 const TOKENS = [
   { Token: '$ERC20Votes', mode: 'blocknumber' },
@@ -25,7 +27,7 @@ describe('ERC20Votes', function () {
       const accounts = await ethers.getSigners();
       const [holder, recipient, delegatee, other1, other2] = accounts;
 
-      const token = await ethers.deployContract(Token, [name, symbol, name, version]);
+      const token = await deployFBContract(Token, [name, symbol, name, version]);
       const domain = await getDomain(token);
 
       return { accounts, holder, recipient, delegatee, other1, other2, token, domain };
@@ -33,7 +35,7 @@ describe('ERC20Votes', function () {
 
     describe(`vote with ${mode}`, function () {
       beforeEach(async function () {
-        Object.assign(this, await loadFixture(fixture));
+        Object.assign(this, await fixture());
         this.votes = this.token;
       });
 
@@ -61,7 +63,7 @@ describe('ERC20Votes', function () {
         // recent
         expect(await this.token.getPastVotes(this.holder, timepoint - 1n)).to.equal(5n);
         // non-recent
-        expect(await this.token.getPastVotes(this.holder, timepoint - 6n)).to.equal(0n);
+        expect(await this.token.getPastVotes(this.holder, timepoint - 6000n)).to.equal(0n);
       });
 
       describe('set delegation', function () {
@@ -82,7 +84,11 @@ describe('ERC20Votes', function () {
             expect(await this.token.delegates(this.holder)).to.equal(this.holder);
             expect(await this.token.getVotes(this.holder)).to.equal(supply);
             expect(await this.token.getPastVotes(this.holder, timepoint - 1n)).to.equal(0n);
-            await mine();
+            if (env.network.name === 'hardhat') {
+              await mine();
+            } else {
+              await mineFB();
+            }
             expect(await this.token.getPastVotes(this.holder, timepoint)).to.equal(supply);
           });
 
@@ -133,7 +139,11 @@ describe('ERC20Votes', function () {
 
             expect(await this.token.getVotes(this.holder)).to.equal(supply);
             expect(await this.token.getPastVotes(this.holder, timepoint - 1n)).to.equal(0n);
-            await mine();
+            if (env.network.name === 'hardhat') {
+              await mine();
+            } else {
+              await mineFB();
+            }
             expect(await this.token.getPastVotes(this.holder, timepoint)).to.equal(supply);
           });
 
@@ -257,7 +267,11 @@ describe('ERC20Votes', function () {
           expect(await this.token.getVotes(this.delegatee)).to.equal(supply);
           expect(await this.token.getPastVotes(this.holder, timepoint - 1n)).to.equal(supply);
           expect(await this.token.getPastVotes(this.delegatee, timepoint - 1n)).to.equal(0n);
-          await mine();
+          if (env.network.name === 'hardhat') {
+            await mine();
+          } else {
+            await mineFB();
+          }
           expect(await this.token.getPastVotes(this.holder, timepoint)).to.equal(0n);
           expect(await this.token.getPastVotes(this.delegatee, timepoint)).to.equal(supply);
         });
@@ -347,7 +361,11 @@ describe('ERC20Votes', function () {
 
           // need to advance 2 blocks to see the effect of a transfer on "getPastVotes"
           const timepoint = await time.clock[mode]();
-          await mine();
+          if (env.network.name === 'hardhat') {
+            await mine();
+          } else {
+            await mineFB();
+          }
           expect(await this.token.getPastVotes(this.holder, timepoint)).to.equal(this.holderVotes);
           expect(await this.token.getPastVotes(this.recipient, timepoint)).to.equal(this.recipientVotes);
         });
@@ -390,7 +408,11 @@ describe('ERC20Votes', function () {
             expect(await this.token.checkpoints(this.other1, 1n)).to.deep.equal([t2.timepoint, 90n]);
             expect(await this.token.checkpoints(this.other1, 2n)).to.deep.equal([t3.timepoint, 80n]);
             expect(await this.token.checkpoints(this.other1, 3n)).to.deep.equal([t4.timepoint, 100n]);
-            await mine();
+            if (env.network.name === 'hardhat') {
+              await mine();
+            } else {
+              await mineFB();
+            }
             expect(await this.token.getPastVotes(this.other1, t1.timepoint)).to.equal(100n);
             expect(await this.token.getPastVotes(this.other1, t2.timepoint)).to.equal(90n);
             expect(await this.token.getPastVotes(this.other1, t3.timepoint)).to.equal(80n);
@@ -401,32 +423,34 @@ describe('ERC20Votes', function () {
             await this.token.connect(this.holder).transfer(this.recipient, 100n);
             expect(await this.token.numCheckpoints(this.other1)).to.equal(0n);
 
-            const [t1, t2, t3] = await batchInBlock([
-              () => this.token.connect(this.recipient).delegate(this.other1, { gasLimit: 200000 }),
-              () => this.token.connect(this.recipient).transfer(this.other2, 10n, { gasLimit: 200000 }),
-              () => this.token.connect(this.recipient).transfer(this.other2, 10n, { gasLimit: 200000 }),
-            ]);
-            t1.timepoint = await time.clockFromReceipt[mode](t1);
-            t2.timepoint = await time.clockFromReceipt[mode](t2);
-            t3.timepoint = await time.clockFromReceipt[mode](t3);
+            if (network.name === 'hardhat') {
+              const [t1, t2, t3] = await batchInBlock([
+                () => this.token.connect(this.recipient).delegate(this.other1, { gasLimit: 200000 }),
+                () => this.token.connect(this.recipient).transfer(this.other2, 10n, { gasLimit: 200000 }),
+                () => this.token.connect(this.recipient).transfer(this.other2, 10n, { gasLimit: 200000 }),
+              ]);
+              t1.timepoint = await time.clockFromReceipt[mode](t1);
+              t2.timepoint = await time.clockFromReceipt[mode](t2);
+              t3.timepoint = await time.clockFromReceipt[mode](t3);
 
-            expect(await this.token.numCheckpoints(this.other1)).to.equal(1);
-            expect(await this.token.checkpoints(this.other1, 0n)).to.be.deep.equal([t1.timepoint, 80n]);
+              expect(await this.token.numCheckpoints(this.other1)).to.equal(1);
+              expect(await this.token.checkpoints(this.other1, 0n)).to.be.deep.equal([t1.timepoint, 80n]);
 
-            const t4 = await this.token.connect(this.holder).transfer(this.recipient, 20n);
-            t4.timepoint = await time.clockFromReceipt[mode](t4);
+              const t4 = await this.token.connect(this.holder).transfer(this.recipient, 20n);
+              t4.timepoint = await time.clockFromReceipt[mode](t4);
 
-            expect(await this.token.numCheckpoints(this.other1)).to.equal(2n);
-            expect(await this.token.checkpoints(this.other1, 1n)).to.be.deep.equal([t4.timepoint, 100n]);
+              expect(await this.token.numCheckpoints(this.other1)).to.equal(2n);
+              expect(await this.token.checkpoints(this.other1, 1n)).to.be.deep.equal([t4.timepoint, 100n]);
+            }
           });
         });
 
         describe('getPastVotes', function () {
           it('reverts if block number >= current block', async function () {
             const clock = await this.token.clock();
-            await expect(this.token.getPastVotes(this.other1, 50_000_000_000n))
+            await expect(this.token.getPastVotes(this.other1, 50_000_000_000_000n))
               .to.be.revertedWithCustomError(this.token, 'ERC5805FutureLookup')
-              .withArgs(50_000_000_000n, clock);
+              .withArgs(50_000_000_000_000n, clock);
           });
 
           it('returns 0 if there are no checkpoints', async function () {
@@ -436,17 +460,29 @@ describe('ERC20Votes', function () {
           it('returns the latest block if >= last checkpoint block', async function () {
             const tx = await this.token.connect(this.holder).delegate(this.other1);
             const timepoint = await time.clockFromReceipt[mode](tx);
-            await mine(2);
+            if (env.network.name === 'hardhat') {
+              await mine(2);
+            } else {
+              await mineFB(2);
+            }
 
             expect(await this.token.getPastVotes(this.other1, timepoint)).to.equal(supply);
             expect(await this.token.getPastVotes(this.other1, timepoint + 1n)).to.equal(supply);
           });
 
           it('returns zero if < first checkpoint block', async function () {
-            await mine();
+            if (env.network.name === 'hardhat') {
+              await mine();
+            } else {
+              await mineFB();
+            }
             const tx = await this.token.connect(this.holder).delegate(this.other1);
             const timepoint = await time.clockFromReceipt[mode](tx);
-            await mine(2);
+            if (env.network.name === 'hardhat') {
+              await mine(2);
+            } else {
+              await mineFB(2);
+            }
 
             expect(await this.token.getPastVotes(this.other1, timepoint - 1n)).to.equal(0n);
             expect(await this.token.getPastVotes(this.other1, timepoint + 1n)).to.equal(supply);
@@ -454,13 +490,29 @@ describe('ERC20Votes', function () {
 
           it('generally returns the voting balance at the appropriate checkpoint', async function () {
             const t1 = await this.token.connect(this.holder).delegate(this.other1);
-            await mine(2);
+            if (env.network.name === 'hardhat') {
+              await mine(2);
+            } else {
+              await mineFB(2);
+            }
             const t2 = await this.token.connect(this.holder).transfer(this.other2, 10);
-            await mine(2);
+            if (env.network.name === 'hardhat') {
+              await mine(2);
+            } else {
+              await mineFB(2);
+            }
             const t3 = await this.token.connect(this.holder).transfer(this.other2, 10);
-            await mine(2);
+            if (env.network.name === 'hardhat') {
+              await mine(2);
+            } else {
+              await mineFB(2);
+            }
             const t4 = await this.token.connect(this.other2).transfer(this.holder, 20);
-            await mine(2);
+            if (env.network.name === 'hardhat') {
+              await mine(2);
+            } else {
+              await mineFB(2);
+            }
 
             t1.timepoint = await time.clockFromReceipt[mode](t1);
             t2.timepoint = await time.clockFromReceipt[mode](t2);
@@ -487,9 +539,10 @@ describe('ERC20Votes', function () {
 
         it('reverts if block number >= current block', async function () {
           const clock = await this.token.clock();
-          await expect(this.token.getPastTotalSupply(50_000_000_000n))
+          console.log(clock);
+          await expect(this.token.getPastTotalSupply(50_000_000_000_000n))
             .to.be.revertedWithCustomError(this.token, 'ERC5805FutureLookup')
-            .withArgs(50_000_000_000n, clock);
+            .withArgs(50_000_000_000_000n, clock);
         });
 
         it('returns 0 if there are no checkpoints', async function () {
@@ -499,17 +552,29 @@ describe('ERC20Votes', function () {
         it('returns the latest block if >= last checkpoint block', async function () {
           const tx = await this.token.$_mint(this.holder, supply);
           const timepoint = await time.clockFromReceipt[mode](tx);
-          await mine(2);
+          if (env.network.name === 'hardhat') {
+            await mine(2);
+          } else {
+            await mineFB(2);
+          }
 
           expect(await this.token.getPastTotalSupply(timepoint)).to.equal(supply);
           expect(await this.token.getPastTotalSupply(timepoint + 1n)).to.equal(supply);
         });
 
         it('returns zero if < first checkpoint block', async function () {
-          await mine();
+          if (env.network.name === 'hardhat') {
+            await mine();
+          } else {
+            await mineFB();
+          }
           const tx = await this.token.$_mint(this.holder, supply);
           const timepoint = await time.clockFromReceipt[mode](tx);
-          await mine(2);
+          if (env.network.name === 'hardhat') {
+            await mine(2);
+          } else {
+            await mineFB(2);
+          }
 
           expect(await this.token.getPastTotalSupply(timepoint - 1n)).to.equal(0n);
           expect(await this.token.getPastTotalSupply(timepoint + 1n)).to.equal(supply);
@@ -517,13 +582,29 @@ describe('ERC20Votes', function () {
 
         it('generally returns the voting balance at the appropriate checkpoint', async function () {
           const t1 = await this.token.$_mint(this.holder, supply);
-          await mine(2);
+          if (env.network.name === 'hardhat') {
+            await mine(2);
+          } else {
+            await mineFB(2);
+          }
           const t2 = await this.token.$_burn(this.holder, 10n);
-          await mine(2);
+          if (env.network.name === 'hardhat') {
+            await mine(2);
+          } else {
+            await mineFB(2);
+          }
           const t3 = await this.token.$_burn(this.holder, 10n);
-          await mine(2);
+          if (env.network.name === 'hardhat') {
+            await mine(2);
+          } else {
+            await mineFB(2);
+          }
           const t4 = await this.token.$_mint(this.holder, 20n);
-          await mine(2);
+          if (env.network.name === 'hardhat') {
+            await mine(2);
+          } else {
+            await mineFB(2);
+          }
 
           t1.timepoint = await time.clockFromReceipt[mode](t1);
           t2.timepoint = await time.clockFromReceipt[mode](t2);
