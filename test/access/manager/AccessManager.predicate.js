@@ -5,6 +5,8 @@ const { setStorageAt } = require('@nomicfoundation/hardhat-network-helpers');
 const { EXECUTION_ID_STORAGE_SLOT, EXPIRATION, prepareOperation } = require('../../helpers/access-manager');
 const { impersonate } = require('../../helpers/account');
 const time = require('../../helpers/time');
+const env = require('hardhat');
+const { mineFB } = require('../../helpers/fb-deploy-helper');
 
 // ============ COMMON PREDICATES ============
 
@@ -120,6 +122,7 @@ const LIKE_COMMON_SCHEDULABLE = {
 function testAsClosable({ closed, open }) {
   describe('when the manager is closed', function () {
     beforeEach('close', async function () {
+      await mineFB();
       await this.manager.$_setTargetClosed(this.target, true);
     });
 
@@ -128,6 +131,7 @@ function testAsClosable({ closed, open }) {
 
   describe('when the manager is open', function () {
     beforeEach('open', async function () {
+      await mineFB();
       await this.manager.$_setTargetClosed(this.target, false);
     });
 
@@ -146,21 +150,24 @@ function testAsDelay(type, { before, after }) {
     this.delayEffect = timestamp + this.delay;
   });
 
-  describe(`when ${type} delay has not taken effect yet`, function () {
-    beforeEach(`set next block timestamp before ${type} takes effect`, async function () {
-      await time.increaseTo.timestamp(this.delayEffect - 1n, !!before.mineDelay);
+  // TODO)): not support time interface
+  if (env.network.name === 'hardhat') {
+    describe(`when ${type} delay has not taken effect yet`, function () {
+      beforeEach(`set next block timestamp before ${type} takes effect`, async function () {
+        await time.increaseTo.timestamp(this.delayEffect - 1n, !!before.mineDelay);
+      });
+
+      before();
     });
 
-    before();
-  });
+    describe(`when ${type} delay has taken effect`, function () {
+      beforeEach(`set next block timestamp when ${type} takes effect`, async function () {
+        await time.increaseTo.timestamp(this.delayEffect, !!after.mineDelay);
+      });
 
-  describe(`when ${type} delay has taken effect`, function () {
-    beforeEach(`set next block timestamp when ${type} takes effect`, async function () {
-      await time.increaseTo.timestamp(this.delayEffect, !!after.mineDelay);
+      after();
     });
-
-    after();
-  });
+  }
 }
 
 // ============ OPERATION ============
@@ -184,36 +191,38 @@ function testAsSchedulableOperation({ scheduled: { before, after, expired }, not
       await schedule();
       this.operationId = operationId;
     });
+    // TODO)): not support time interface
+    if (env.network.name === 'hardhat') {
+      describe('when operation is not ready for execution', function () {
+        beforeEach('set next block time before operation is ready', async function () {
+          this.scheduledAt = await time.clock.timestamp();
+          const schedule = await this.manager.getSchedule(this.operationId);
+          await time.increaseTo.timestamp(schedule - 1n, !!before.mineDelay);
+        });
 
-    describe('when operation is not ready for execution', function () {
-      beforeEach('set next block time before operation is ready', async function () {
-        this.scheduledAt = await time.clock.timestamp();
-        const schedule = await this.manager.getSchedule(this.operationId);
-        await time.increaseTo.timestamp(schedule - 1n, !!before.mineDelay);
+        before();
       });
 
-      before();
-    });
+      describe('when operation is ready for execution', function () {
+        beforeEach('set next block time when operation is ready for execution', async function () {
+          this.scheduledAt = await time.clock.timestamp();
+          const schedule = await this.manager.getSchedule(this.operationId);
+          await time.increaseTo.timestamp(schedule, !!after.mineDelay);
+        });
 
-    describe('when operation is ready for execution', function () {
-      beforeEach('set next block time when operation is ready for execution', async function () {
-        this.scheduledAt = await time.clock.timestamp();
-        const schedule = await this.manager.getSchedule(this.operationId);
-        await time.increaseTo.timestamp(schedule, !!after.mineDelay);
+        after();
       });
 
-      after();
-    });
+      describe('when operation has expired', function () {
+        beforeEach('set next block time when operation expired', async function () {
+          this.scheduledAt = await time.clock.timestamp();
+          const schedule = await this.manager.getSchedule(this.operationId);
+          await time.increaseTo.timestamp(schedule + EXPIRATION, !!expired.mineDelay);
+        });
 
-    describe('when operation has expired', function () {
-      beforeEach('set next block time when operation expired', async function () {
-        this.scheduledAt = await time.clock.timestamp();
-        const schedule = await this.manager.getSchedule(this.operationId);
-        await time.increaseTo.timestamp(schedule + EXPIRATION, !!expired.mineDelay);
+        expired();
       });
-
-      expired();
-    });
+    }
   });
 
   describe('when operation is not scheduled', function () {
@@ -232,31 +241,34 @@ function testAsSchedulableOperation({ scheduled: { before, after, expired }, not
  * @requires this.{manager,roles,target,calldata}
  */
 function testAsRestrictedOperation({ callerIsTheManager: { executing, notExecuting }, callerIsNotTheManager }) {
-  describe('when the call comes from the manager (msg.sender == manager)', function () {
-    beforeEach('define caller as manager', async function () {
-      this.caller = this.manager;
-      if (this.caller.target) {
-        await impersonate(this.caller.target);
-        this.caller = await ethers.getSigner(this.caller.target);
-      }
-    });
-
-    describe('when _executionId is in storage for target and selector', function () {
-      beforeEach('set _executionId flag from calldata and target', async function () {
-        const executionId = ethers.keccak256(
-          ethers.AbiCoder.defaultAbiCoder().encode(
-            ['address', 'bytes4'],
-            [this.target.target, this.calldata.substring(0, 10)],
-          ),
-        );
-        await setStorageAt(this.manager.target, EXECUTION_ID_STORAGE_SLOT, executionId);
+  // TODO)): not support setStorage interface
+  if (env.network.name === 'hardhat') {
+    describe('when the call comes from the manager (msg.sender == manager)', function () {
+      beforeEach('define caller as manager', async function () {
+        this.caller = this.manager;
+        if (this.caller.target) {
+          await impersonate(this.caller.target);
+          this.caller = await ethers.getSigner(this.caller.target);
+        }
       });
 
-      executing();
-    });
+      describe('when _executionId is in storage for target and selector', function () {
+        beforeEach('set _executionId flag from calldata and target', async function () {
+          const executionId = ethers.keccak256(
+            ethers.AbiCoder.defaultAbiCoder().encode(
+              ['address', 'bytes4'],
+              [this.target.target, this.calldata.substring(0, 10)],
+            ),
+          );
+          await setStorageAt(this.manager.target, EXECUTION_ID_STORAGE_SLOT, executionId);
+        });
 
-    describe('when _executionId does not match target and selector', notExecuting);
-  });
+        executing();
+      });
+
+      describe('when _executionId does not match target and selector', notExecuting);
+    });
+  }
 
   describe('when the call does not come from the manager (msg.sender != manager)', function () {
     beforeEach('define non manager caller', function () {
@@ -339,6 +351,7 @@ function testAsHasRole({ publicRoleIsRequired, specificRoleIsRequired }) {
   describe('when the function requires the caller to be granted with the PUBLIC_ROLE', function () {
     beforeEach('set target function role as PUBLIC_ROLE', async function () {
       this.role = this.roles.PUBLIC;
+      await mineFB();
       await this.manager
         .connect(this.roles.ADMIN.members[0])
         .$_setTargetFunctionRole(this.target, this.calldata.substring(0, 10), this.role.id);

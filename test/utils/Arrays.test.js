@@ -1,6 +1,6 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../helpers/fb-deploy-helper');
 
 const { generators } = require('../helpers/random');
 const { capitalize } = require('../../scripts/helpers');
@@ -24,11 +24,11 @@ const hasDuplicates = array => array.some((v, i) => array.indexOf(v) != i);
 
 describe('Arrays', function () {
   const fixture = async () => {
-    return { mock: await ethers.deployContract('$Arrays') };
+    return { mock: await deployFBContract('$Arrays') };
   };
 
-  beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+  before(async function () {
+    Object.assign(this, await fixture());
   });
 
   describe('search', function () {
@@ -86,11 +86,11 @@ describe('Arrays', function () {
     })) {
       describe(title, function () {
         const fixture = async () => {
-          return { instance: await ethers.deployContract('Uint256ArraysMock', [array]) };
+          return { instance: await deployFBContract('Uint256ArraysMock', [array]) };
         };
 
-        beforeEach(async function () {
-          Object.assign(this, await loadFixture(fixture));
+        before(async function () {
+          Object.assign(this, await fixture());
         });
 
         for (const [name, input] of Object.entries(tests)) {
@@ -124,11 +124,11 @@ describe('Arrays', function () {
 
     describe(type, function () {
       const fixture = async () => {
-        return { instance: await ethers.deployContract(`${capitalize(type)}ArraysMock`, [elements]) };
+        return { instance: await deployFBContract(`${capitalize(type)}ArraysMock`, [elements]) };
       };
 
-      beforeEach(async function () {
-        Object.assign(this, await loadFixture(fixture));
+      before(async function () {
+        Object.assign(this, await fixture());
       });
 
       describe('sort', function () {

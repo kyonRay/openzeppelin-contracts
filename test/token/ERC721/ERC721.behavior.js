@@ -2,6 +2,7 @@ const { ethers } = require('hardhat');
 const { expect } = require('chai');
 const { PANIC_CODES } = require('@nomicfoundation/hardhat-chai-matchers/panic');
 const { anyValue } = require('@nomicfoundation/hardhat-chai-matchers/withArgs');
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 
 const { shouldSupportInterfaces } = require('../../utils/introspection/SupportsInterface.behavior');
 const { RevertType } = require('../../helpers/enums');
@@ -241,7 +242,7 @@ function shouldBehaveLikeERC721() {
 
         describe('to a valid receiver contract', function () {
           beforeEach(async function () {
-            this.to = await ethers.deployContract('ERC721ReceiverMock', [RECEIVER_MAGIC_VALUE, RevertType.None]);
+            this.to = await deployFBContract('ERC721ReceiverMock', [RECEIVER_MAGIC_VALUE, RevertType.None]);
           });
 
           shouldTransferTokensByUsers(fragment, opts);
@@ -298,10 +299,7 @@ function shouldBehaveLikeERC721() {
 
           describe('to a receiver contract returning unexpected value', function () {
             it('reverts', async function () {
-              const invalidReceiver = await ethers.deployContract('ERC721ReceiverMock', [
-                '0xdeadbeef',
-                RevertType.None,
-              ]);
+              const invalidReceiver = await deployFBContract('ERC721ReceiverMock', ['0xdeadbeef', RevertType.None]);
 
               await expect(this.token.connect(this.owner)[fnName](this.owner, invalidReceiver, tokenId))
                 .to.be.revertedWithCustomError(this.token, 'ERC721InvalidReceiver')
@@ -311,7 +309,7 @@ function shouldBehaveLikeERC721() {
 
           describe('to a receiver contract that reverts with message', function () {
             it('reverts', async function () {
-              const revertingReceiver = await ethers.deployContract('ERC721ReceiverMock', [
+              const revertingReceiver = await deployFBContract('ERC721ReceiverMock', [
                 RECEIVER_MAGIC_VALUE,
                 RevertType.RevertWithMessage,
               ]);
@@ -324,7 +322,7 @@ function shouldBehaveLikeERC721() {
 
           describe('to a receiver contract that reverts without message', function () {
             it('reverts', async function () {
-              const revertingReceiver = await ethers.deployContract('ERC721ReceiverMock', [
+              const revertingReceiver = await deployFBContract('ERC721ReceiverMock', [
                 RECEIVER_MAGIC_VALUE,
                 RevertType.RevertWithoutMessage,
               ]);
@@ -337,7 +335,7 @@ function shouldBehaveLikeERC721() {
 
           describe('to a receiver contract that reverts with custom error', function () {
             it('reverts', async function () {
-              const revertingReceiver = await ethers.deployContract('ERC721ReceiverMock', [
+              const revertingReceiver = await deployFBContract('ERC721ReceiverMock', [
                 RECEIVER_MAGIC_VALUE,
                 RevertType.RevertWithCustomError,
               ]);
@@ -350,7 +348,7 @@ function shouldBehaveLikeERC721() {
 
           describe('to a receiver contract that panics', function () {
             it('reverts', async function () {
-              const revertingReceiver = await ethers.deployContract('ERC721ReceiverMock', [
+              const revertingReceiver = await deployFBContract('ERC721ReceiverMock', [
                 RECEIVER_MAGIC_VALUE,
                 RevertType.Panic,
               ]);
@@ -363,7 +361,7 @@ function shouldBehaveLikeERC721() {
 
           describe('to a contract that does not implement the required function', function () {
             it('reverts', async function () {
-              const nonReceiver = await ethers.deployContract('CallReceiverMock');
+              const nonReceiver = await deployFBContract('CallReceiverMock');
 
               await expect(this.token.connect(this.owner)[fnName](this.owner, nonReceiver, tokenId))
                 .to.be.revertedWithCustomError(this.token, 'ERC721InvalidReceiver')
@@ -381,7 +379,7 @@ function shouldBehaveLikeERC721() {
       describe('via safeMint', function () {
         // regular minting is tested in ERC721Mintable.test.js and others
         it('calls onERC721Received — with data', async function () {
-          const receiver = await ethers.deployContract('ERC721ReceiverMock', [RECEIVER_MAGIC_VALUE, RevertType.None]);
+          const receiver = await deployFBContract('ERC721ReceiverMock', [RECEIVER_MAGIC_VALUE, RevertType.None]);
 
           await expect(await this.token.$_safeMint(receiver, tokenId, ethers.Typed.bytes(data)))
             .to.emit(receiver, 'Received')
@@ -389,7 +387,7 @@ function shouldBehaveLikeERC721() {
         });
 
         it('calls onERC721Received — without data', async function () {
-          const receiver = await ethers.deployContract('ERC721ReceiverMock', [RECEIVER_MAGIC_VALUE, RevertType.None]);
+          const receiver = await deployFBContract('ERC721ReceiverMock', [RECEIVER_MAGIC_VALUE, RevertType.None]);
 
           await expect(await this.token.$_safeMint(receiver, tokenId))
             .to.emit(receiver, 'Received')
@@ -398,7 +396,7 @@ function shouldBehaveLikeERC721() {
 
         describe('to a receiver contract returning unexpected value', function () {
           it('reverts', async function () {
-            const invalidReceiver = await ethers.deployContract('ERC721ReceiverMock', ['0xdeadbeef', RevertType.None]);
+            const invalidReceiver = await deployFBContract('ERC721ReceiverMock', ['0xdeadbeef', RevertType.None]);
 
             await expect(this.token.$_safeMint(invalidReceiver, tokenId))
               .to.be.revertedWithCustomError(this.token, 'ERC721InvalidReceiver')
@@ -408,7 +406,7 @@ function shouldBehaveLikeERC721() {
 
         describe('to a receiver contract that reverts with message', function () {
           it('reverts', async function () {
-            const revertingReceiver = await ethers.deployContract('ERC721ReceiverMock', [
+            const revertingReceiver = await deployFBContract('ERC721ReceiverMock', [
               RECEIVER_MAGIC_VALUE,
               RevertType.RevertWithMessage,
             ]);
@@ -421,7 +419,7 @@ function shouldBehaveLikeERC721() {
 
         describe('to a receiver contract that reverts without message', function () {
           it('reverts', async function () {
-            const revertingReceiver = await ethers.deployContract('ERC721ReceiverMock', [
+            const revertingReceiver = await deployFBContract('ERC721ReceiverMock', [
               RECEIVER_MAGIC_VALUE,
               RevertType.RevertWithoutMessage,
             ]);
@@ -434,7 +432,7 @@ function shouldBehaveLikeERC721() {
 
         describe('to a receiver contract that reverts with custom error', function () {
           it('reverts', async function () {
-            const revertingReceiver = await ethers.deployContract('ERC721ReceiverMock', [
+            const revertingReceiver = await deployFBContract('ERC721ReceiverMock', [
               RECEIVER_MAGIC_VALUE,
               RevertType.RevertWithCustomError,
             ]);
@@ -447,7 +445,7 @@ function shouldBehaveLikeERC721() {
 
         describe('to a receiver contract that panics', function () {
           it('reverts', async function () {
-            const revertingReceiver = await ethers.deployContract('ERC721ReceiverMock', [
+            const revertingReceiver = await deployFBContract('ERC721ReceiverMock', [
               RECEIVER_MAGIC_VALUE,
               RevertType.Panic,
             ]);
@@ -460,7 +458,7 @@ function shouldBehaveLikeERC721() {
 
         describe('to a contract that does not implement the required function', function () {
           it('reverts', async function () {
-            const nonReceiver = await ethers.deployContract('CallReceiverMock');
+            const nonReceiver = await deployFBContract('CallReceiverMock');
 
             await expect(this.token.$_safeMint(nonReceiver, tokenId))
               .to.be.revertedWithCustomError(this.token, 'ERC721InvalidReceiver')

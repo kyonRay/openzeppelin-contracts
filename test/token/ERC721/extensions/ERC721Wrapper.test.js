@@ -1,6 +1,6 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../../helpers/fb-deploy-helper');
 
 const { shouldBehaveLikeERC721 } = require('../ERC721.behavior');
 
@@ -13,17 +13,17 @@ async function fixture() {
   const accounts = await ethers.getSigners();
   const [owner, approved, other] = accounts;
 
-  const underlying = await ethers.deployContract('$ERC721', [name, symbol]);
+  const underlying = await deployFBContract('$ERC721', [name, symbol]);
   await underlying.$_safeMint(owner, tokenId);
   await underlying.$_safeMint(owner, otherTokenId);
-  const token = await ethers.deployContract('$ERC721Wrapper', [`Wrapped ${name}`, `W${symbol}`, underlying]);
+  const token = await deployFBContract('$ERC721Wrapper', [`Wrapped ${name}`, `W${symbol}`, underlying]);
 
   return { accounts, owner, approved, other, underlying, token };
 }
 
 describe('ERC721Wrapper', function () {
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
   it('has a name', async function () {

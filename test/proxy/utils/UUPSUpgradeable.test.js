@@ -1,21 +1,21 @@
-const { ethers } = require('hardhat');
+const { ethers, network } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 
 const { getAddressInSlot, ImplementationSlot } = require('../../helpers/storage');
 
 async function fixture() {
-  const implInitial = await ethers.deployContract('UUPSUpgradeableMock');
-  const implUpgradeOk = await ethers.deployContract('UUPSUpgradeableMock');
-  const implUpgradeUnsafe = await ethers.deployContract('UUPSUpgradeableUnsafeMock');
-  const implUpgradeNonUUPS = await ethers.deployContract('NonUpgradeableMock');
-  const implUnsupportedUUID = await ethers.deployContract('UUPSUnsupportedProxiableUUID');
+  const implInitial = await deployFBContract('UUPSUpgradeableMock');
+  const implUpgradeOk = await deployFBContract('UUPSUpgradeableMock');
+  const implUpgradeUnsafe = await deployFBContract('UUPSUpgradeableUnsafeMock');
+  const implUpgradeNonUUPS = await deployFBContract('NonUpgradeableMock');
+  const implUnsupportedUUID = await deployFBContract('UUPSUnsupportedProxiableUUID');
   // Used for testing non ERC1967 compliant proxies (clones are proxies that don't use the ERC1967 implementation slot)
-  const cloneFactory = await ethers.deployContract('$Clones');
+  const cloneFactory = await deployFBContract('$Clones');
 
-  const instance = await ethers
-    .deployContract('ERC1967Proxy', [implInitial, '0x'])
-    .then(proxy => implInitial.attach(proxy.target));
+  const instance = await deployFBContract('ERC1967Proxy', [implInitial, '0x']).then(proxy =>
+    implInitial.attach(proxy.target),
+  );
 
   return {
     implInitial,
@@ -30,7 +30,7 @@ async function fixture() {
 
 describe('UUPSUpgradeable', function () {
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
   it('has an interface version', async function () {
@@ -74,18 +74,20 @@ describe('UUPSUpgradeable', function () {
       ),
     ).to.be.revertedWithCustomError(this.implUpgradeOk, 'UUPSUnauthorizedCallContext');
   });
+  // FIXME)): static call not support tx
+  if (network.name === 'hardhat') {
+    it('calling upgradeToAndCall from a contract that is not an ERC1967 proxy (with the right implementation) reverts', async function () {
+      const instance = await this.cloneFactory.$clone
+        .staticCall(this.implUpgradeOk)
+        .then(address => this.implInitial.attach(address));
+      await this.cloneFactory.$clone(this.implUpgradeOk);
 
-  it('calling upgradeToAndCall from a contract that is not an ERC1967 proxy (with the right implementation) reverts', async function () {
-    const instance = await this.cloneFactory.$clone
-      .staticCall(this.implUpgradeOk)
-      .then(address => this.implInitial.attach(address));
-    await this.cloneFactory.$clone(this.implUpgradeOk);
-
-    await expect(instance.upgradeToAndCall(this.implUpgradeUnsafe, '0x')).to.be.revertedWithCustomError(
-      instance,
-      'UUPSUnauthorizedCallContext',
-    );
-  });
+      await expect(instance.upgradeToAndCall(this.implUpgradeUnsafe, '0x')).to.be.revertedWithCustomError(
+        instance,
+        'UUPSUnauthorizedCallContext',
+      );
+    });
+  }
 
   it('rejects upgrading to an unsupported UUID', async function () {
     await expect(this.instance.upgradeToAndCall(this.implUnsupportedUUID, '0x'))
@@ -109,9 +111,9 @@ describe('UUPSUpgradeable', function () {
   });
 
   it('reject proxy address as implementation', async function () {
-    const otherInstance = await ethers
-      .deployContract('ERC1967Proxy', [this.implInitial, '0x'])
-      .then(proxy => this.implInitial.attach(proxy.target));
+    const otherInstance = await deployFBContract('ERC1967Proxy', [this.implInitial, '0x']).then(proxy =>
+      this.implInitial.attach(proxy.target),
+    );
 
     await expect(this.instance.upgradeToAndCall(otherInstance, '0x'))
       .to.be.revertedWithCustomError(this.instance, 'ERC1967InvalidImplementation')

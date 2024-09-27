@@ -1,9 +1,8 @@
-const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 
 async function fixture() {
-  const bitmap = await ethers.deployContract('$BitMaps');
+  const bitmap = await deployFBContract('$BitMaps');
   return { bitmap };
 }
 
@@ -12,8 +11,8 @@ describe('BitMap', function () {
   const keyB = 451n;
   const keyC = 9592328n;
 
-  beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+  before(async function () {
+    Object.assign(this, await fixture());
   });
 
   it('starts empty', async function () {

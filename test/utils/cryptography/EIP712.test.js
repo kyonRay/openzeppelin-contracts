@@ -1,6 +1,6 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 
 const { getDomain, domainSeparator, hashTypedData } = require('../../helpers/eip712');
 const { formatType } = require('../../helpers/eip712-types');
@@ -16,7 +16,7 @@ const fixture = async () => {
   const lengths = {};
   for (const [shortOrLong, [name, version]] of Object.entries(LENGTHS)) {
     lengths[shortOrLong] = { name, version };
-    lengths[shortOrLong].eip712 = await ethers.deployContract('$EIP712Verifier', [name, version]);
+    lengths[shortOrLong].eip712 = await deployFBContract('$EIP712Verifier', [name, version]);
     lengths[shortOrLong].domain = {
       name,
       version,
@@ -31,8 +31,8 @@ const fixture = async () => {
 describe('EIP712', function () {
   for (const [shortOrLong, [name, version]] of Object.entries(LENGTHS)) {
     describe(`with ${shortOrLong} name and version`, function () {
-      beforeEach('deploying', async function () {
-        Object.assign(this, await loadFixture(fixture));
+      before('deploying', async function () {
+        Object.assign(this, await fixture());
         Object.assign(this, this.lengths[shortOrLong]);
       });
 
@@ -53,7 +53,7 @@ describe('EIP712', function () {
           // the upgradeable contract variant is used and the initializer is invoked.
 
           it('adjusts when behind proxy', async function () {
-            const factory = await ethers.deployContract('$Clones');
+            const factory = await deployFBContract('$Clones');
 
             const clone = await factory
               .$clone(this.eip712)

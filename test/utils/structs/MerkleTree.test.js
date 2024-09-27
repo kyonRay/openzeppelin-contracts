@@ -1,6 +1,6 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 const { PANIC_CODES } = require('@nomicfoundation/hardhat-chai-matchers/panic');
 const { StandardMerkleTree } = require('@openzeppelin/merkle-tree');
 
@@ -19,14 +19,14 @@ const DEPTH = 4n; // 16 slots
 const ZERO = hashLeaf(ethers.ZeroHash);
 
 async function fixture() {
-  const mock = await ethers.deployContract('MerkleTreeMock');
+  const mock = await deployFBContract('MerkleTreeMock');
   await mock.setup(DEPTH, ZERO);
   return { mock };
 }
 
 describe('MerkleTree', function () {
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
   it('sets initial values at setup', async function () {

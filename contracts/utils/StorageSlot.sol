@@ -38,11 +38,11 @@ pragma solidity ^0.8.24;
  *     bytes32 internal constant _LOCK_SLOT = 0xf4678858b2b588224636b8522b729e7722d32fc491da849ed75b3fdf3c84f542;
  *
  *     modifier locked() {
- *         require(!_LOCK_SLOT.asBoolean().tload());
+ *         require(!_LOCK_SLOT.asBoolean().sload());
  *
- *         _LOCK_SLOT.asBoolean().tstore(true);
+ *         _LOCK_SLOT.asBoolean().sstore(true);
  *         _;
- *         _LOCK_SLOT.asBoolean().tstore(false);
+ *         _LOCK_SLOT.asBoolean().sstore(false);
  *     }
  * }
  * ```
@@ -231,100 +231,100 @@ library StorageSlot {
     /**
      * @dev Load the value held at location `slot` in transient storage.
      */
-    function tload(AddressSlotType slot) internal view returns (address value) {
+    function sload(AddressSlotType slot) internal view returns (address value) {
         /// @solidity memory-safe-assembly
         assembly {
-            value := tload(slot)
+            value := sload(slot)
         }
     }
 
     /**
      * @dev Store `value` at location `slot` in transient storage.
      */
-    function tstore(AddressSlotType slot, address value) internal {
+    function sstore(AddressSlotType slot, address value) internal {
         /// @solidity memory-safe-assembly
         assembly {
-            tstore(slot, value)
+            sstore(slot, value)
         }
     }
 
     /**
      * @dev Load the value held at location `slot` in transient storage.
      */
-    function tload(BooleanSlotType slot) internal view returns (bool value) {
+    function sload(BooleanSlotType slot) internal view returns (bool value) {
         /// @solidity memory-safe-assembly
         assembly {
-            value := tload(slot)
+            value := sload(slot)
         }
     }
 
     /**
      * @dev Store `value` at location `slot` in transient storage.
      */
-    function tstore(BooleanSlotType slot, bool value) internal {
+    function sstore(BooleanSlotType slot, bool value) internal {
         /// @solidity memory-safe-assembly
         assembly {
-            tstore(slot, value)
+            sstore(slot, value)
         }
     }
 
     /**
      * @dev Load the value held at location `slot` in transient storage.
      */
-    function tload(Bytes32SlotType slot) internal view returns (bytes32 value) {
+    function sload(Bytes32SlotType slot) internal view returns (bytes32 value) {
         /// @solidity memory-safe-assembly
         assembly {
-            value := tload(slot)
+            value := sload(slot)
         }
     }
 
     /**
      * @dev Store `value` at location `slot` in transient storage.
      */
-    function tstore(Bytes32SlotType slot, bytes32 value) internal {
+    function sstore(Bytes32SlotType slot, bytes32 value) internal {
         /// @solidity memory-safe-assembly
         assembly {
-            tstore(slot, value)
+            sstore(slot, value)
         }
     }
 
     /**
      * @dev Load the value held at location `slot` in transient storage.
      */
-    function tload(Uint256SlotType slot) internal view returns (uint256 value) {
+    function sload(Uint256SlotType slot) internal view returns (uint256 value) {
         /// @solidity memory-safe-assembly
         assembly {
-            value := tload(slot)
+            value := sload(slot)
         }
     }
 
     /**
      * @dev Store `value` at location `slot` in transient storage.
      */
-    function tstore(Uint256SlotType slot, uint256 value) internal {
+    function sstore(Uint256SlotType slot, uint256 value) internal {
         /// @solidity memory-safe-assembly
         assembly {
-            tstore(slot, value)
+            sstore(slot, value)
         }
     }
 
     /**
      * @dev Load the value held at location `slot` in transient storage.
      */
-    function tload(Int256SlotType slot) internal view returns (int256 value) {
+    function sload(Int256SlotType slot) internal view returns (int256 value) {
         /// @solidity memory-safe-assembly
         assembly {
-            value := tload(slot)
+            value := sload(slot)
         }
     }
 
     /**
      * @dev Store `value` at location `slot` in transient storage.
      */
-    function tstore(Int256SlotType slot, int256 value) internal {
+    function sstore(Int256SlotType slot, int256 value) internal {
         /// @solidity memory-safe-assembly
         assembly {
-            tstore(slot, value)
+            sstore(slot, value)
         }
     }
 }

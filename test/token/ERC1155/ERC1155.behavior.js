@@ -1,6 +1,7 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
 const { anyValue } = require('@nomicfoundation/hardhat-chai-matchers/withArgs');
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 
 const { RevertType } = require('../../helpers/enums');
 const { shouldSupportInterfaces } = require('../../utils/introspection/SupportsInterface.behavior');
@@ -241,7 +242,7 @@ function shouldBehaveLikeERC1155() {
 
       describe('when sending to a valid receiver', function () {
         beforeEach(async function () {
-          this.receiver = await ethers.deployContract('$ERC1155ReceiverMock', [
+          this.receiver = await deployFBContract('$ERC1155ReceiverMock', [
             RECEIVER_SINGLE_MAGIC_VALUE,
             RECEIVER_BATCH_MAGIC_VALUE,
             RevertType.None,
@@ -299,7 +300,7 @@ function shouldBehaveLikeERC1155() {
 
       describe('to a receiver contract returning unexpected value', function () {
         it('reverts', async function () {
-          const receiver = await ethers.deployContract('$ERC1155ReceiverMock', [
+          const receiver = await deployFBContract('$ERC1155ReceiverMock', [
             '0x00c0ffee',
             RECEIVER_BATCH_MAGIC_VALUE,
             RevertType.None,
@@ -318,7 +319,7 @@ function shouldBehaveLikeERC1155() {
       describe('to a receiver contract that reverts', function () {
         describe('with a revert string', function () {
           it('reverts', async function () {
-            const receiver = await ethers.deployContract('$ERC1155ReceiverMock', [
+            const receiver = await deployFBContract('$ERC1155ReceiverMock', [
               RECEIVER_SINGLE_MAGIC_VALUE,
               RECEIVER_BATCH_MAGIC_VALUE,
               RevertType.RevertWithMessage,
@@ -334,7 +335,7 @@ function shouldBehaveLikeERC1155() {
 
         describe('without a revert string', function () {
           it('reverts', async function () {
-            const receiver = await ethers.deployContract('$ERC1155ReceiverMock', [
+            const receiver = await deployFBContract('$ERC1155ReceiverMock', [
               RECEIVER_SINGLE_MAGIC_VALUE,
               RECEIVER_BATCH_MAGIC_VALUE,
               RevertType.RevertWithoutMessage,
@@ -352,7 +353,7 @@ function shouldBehaveLikeERC1155() {
 
         describe('with a custom error', function () {
           it('reverts', async function () {
-            const receiver = await ethers.deployContract('$ERC1155ReceiverMock', [
+            const receiver = await deployFBContract('$ERC1155ReceiverMock', [
               RECEIVER_SINGLE_MAGIC_VALUE,
               RECEIVER_BATCH_MAGIC_VALUE,
               RevertType.RevertWithCustomError,
@@ -370,7 +371,7 @@ function shouldBehaveLikeERC1155() {
 
         describe('with a panic', function () {
           it('reverts', async function () {
-            const receiver = await ethers.deployContract('$ERC1155ReceiverMock', [
+            const receiver = await deployFBContract('$ERC1155ReceiverMock', [
               RECEIVER_SINGLE_MAGIC_VALUE,
               RECEIVER_BATCH_MAGIC_VALUE,
               RevertType.Panic,
@@ -559,7 +560,7 @@ function shouldBehaveLikeERC1155() {
 
       describe('when sending to a valid receiver', function () {
         beforeEach(async function () {
-          this.receiver = await ethers.deployContract('$ERC1155ReceiverMock', [
+          this.receiver = await deployFBContract('$ERC1155ReceiverMock', [
             RECEIVER_SINGLE_MAGIC_VALUE,
             RECEIVER_BATCH_MAGIC_VALUE,
             RevertType.None,
@@ -617,7 +618,7 @@ function shouldBehaveLikeERC1155() {
 
       describe('to a receiver contract returning unexpected value', function () {
         it('reverts', async function () {
-          const receiver = await ethers.deployContract('$ERC1155ReceiverMock', [
+          const receiver = await deployFBContract('$ERC1155ReceiverMock', [
             RECEIVER_SINGLE_MAGIC_VALUE,
             RECEIVER_SINGLE_MAGIC_VALUE,
             RevertType.None,
@@ -642,7 +643,7 @@ function shouldBehaveLikeERC1155() {
       describe('to a receiver contract that reverts', function () {
         describe('with a revert string', function () {
           it('reverts', async function () {
-            const receiver = await ethers.deployContract('$ERC1155ReceiverMock', [
+            const receiver = await deployFBContract('$ERC1155ReceiverMock', [
               RECEIVER_SINGLE_MAGIC_VALUE,
               RECEIVER_BATCH_MAGIC_VALUE,
               RevertType.RevertWithMessage,
@@ -664,7 +665,7 @@ function shouldBehaveLikeERC1155() {
 
         describe('without a revert string', function () {
           it('reverts', async function () {
-            const receiver = await ethers.deployContract('$ERC1155ReceiverMock', [
+            const receiver = await deployFBContract('$ERC1155ReceiverMock', [
               RECEIVER_SINGLE_MAGIC_VALUE,
               RECEIVER_BATCH_MAGIC_VALUE,
               RevertType.RevertWithoutMessage,
@@ -688,7 +689,7 @@ function shouldBehaveLikeERC1155() {
 
         describe('with a custom error', function () {
           it('reverts', async function () {
-            const receiver = await ethers.deployContract('$ERC1155ReceiverMock', [
+            const receiver = await deployFBContract('$ERC1155ReceiverMock', [
               RECEIVER_SINGLE_MAGIC_VALUE,
               RECEIVER_BATCH_MAGIC_VALUE,
               RevertType.RevertWithCustomError,
@@ -712,7 +713,7 @@ function shouldBehaveLikeERC1155() {
 
         describe('with a panic', function () {
           it('reverts', async function () {
-            const receiver = await ethers.deployContract('$ERC1155ReceiverMock', [
+            const receiver = await deployFBContract('$ERC1155ReceiverMock', [
               RECEIVER_SINGLE_MAGIC_VALUE,
               RECEIVER_BATCH_MAGIC_VALUE,
               RevertType.Panic,
