@@ -2,9 +2,16 @@ const { ethers } = require('hardhat');
 const { time, mine, mineUpTo } = require('@nomicfoundation/hardhat-network-helpers');
 const { mapValues } = require('./iterate');
 
+async function latestBlock() {
+  return ethers.provider.getBlockNumber();
+}
+async function latest() {
+  const latestBlock = await ethers.provider.getBlock('latest', false);
+  return latestBlock.timestamp;
+}
 const clock = {
-  blocknumber: () => time.latestBlock().then(ethers.toBigInt),
-  timestamp: () => time.latest().then(ethers.toBigInt),
+  blocknumber: () => latestBlock().then(ethers.toBigInt),
+  timestamp: () => latest().then(ethers.toBigInt),
 };
 const clockFromReceipt = {
   blocknumber: receipt => Promise.resolve(receipt).then(({ blockNumber }) => ethers.toBigInt(blockNumber)),
@@ -15,8 +22,7 @@ const clockFromReceipt = {
 };
 const increaseBy = {
   blockNumber: mine,
-  timestamp: (delay, mine = true) =>
-    time.latest().then(clock => increaseTo.timestamp(clock + ethers.toNumber(delay), mine)),
+  timestamp: (delay, mine = true) => latest().then(clock => increaseTo.timestamp(clock + ethers.toNumber(delay), mine)),
 };
 const increaseTo = {
   blocknumber: mineUpTo,

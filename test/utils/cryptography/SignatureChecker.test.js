@@ -1,6 +1,6 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 
 const precompile = require('../../helpers/precompiles');
 
@@ -12,9 +12,9 @@ const WRONG_MESSAGE_HASH = ethers.hashMessage(WRONG_MESSAGE);
 
 async function fixture() {
   const [signer, other] = await ethers.getSigners();
-  const mock = await ethers.deployContract('$SignatureChecker');
-  const wallet = await ethers.deployContract('ERC1271WalletMock', [signer]);
-  const malicious = await ethers.deployContract('ERC1271MaliciousMock');
+  const mock = await deployFBContract('$SignatureChecker');
+  const wallet = await deployFBContract('ERC1271WalletMock', [signer]);
+  const malicious = await deployFBContract('ERC1271MaliciousMock');
   const signature = await signer.signMessage(TEST_MESSAGE);
 
   return { signer, other, mock, wallet, malicious, signature };
@@ -22,7 +22,7 @@ async function fixture() {
 
 describe('SignatureChecker (ERC1271)', function () {
   before('deploying', async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
   describe('EOA account', function () {

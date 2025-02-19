@@ -1,9 +1,10 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract, mineFB } = require('../../helpers/fb-deploy-helper');
 
 const { GovernorHelper } = require('../../helpers/governance');
 const { VoteType } = require('../../helpers/enums');
+const env = require('hardhat');
 
 const TOKENS = [
   { Token: '$ERC721Votes', mode: 'blocknumber' },
@@ -27,10 +28,11 @@ describe('GovernorERC721', function () {
   for (const { Token, mode } of TOKENS) {
     const fixture = async () => {
       const [owner, voter1, voter2, voter3, voter4] = await ethers.getSigners();
-      const receiver = await ethers.deployContract('CallReceiverMock');
+      const receiver = await deployFBContract('CallReceiverMock');
 
-      const token = await ethers.deployContract(Token, [tokenName, tokenSymbol, tokenName, version]);
-      const mock = await ethers.deployContract('$GovernorMock', [
+      const token = await deployFBContract(Token, [tokenName, tokenSymbol, version]);
+
+      const mock = await deployFBContract('$GovernorMock', [
         name, // name
         votingDelay, // initialVotingDelay
         votingPeriod, // initialVotingPeriod
@@ -40,13 +42,33 @@ describe('GovernorERC721', function () {
       ]);
 
       await owner.sendTransaction({ to: mock, value });
-      await Promise.all([NFT0, NFT1, NFT2, NFT3, NFT4].map(tokenId => token.$_mint(owner, tokenId)));
+      await mineFB();
+      // await Promise.all([NFT0, NFT1, NFT2, NFT3, NFT4].map(tokenId => token.$_mint(owner, tokenId)));
+      token.$_mint(owner, NFT0);
+      await mineFB();
+
+      token.$_mint(owner, NFT1);
+      await mineFB();
+
+      token.$_mint(owner, NFT2);
+      await mineFB();
+
+      token.$_mint(owner, NFT3);
+      await mineFB();
+
+      token.$_mint(owner, NFT4);
 
       const helper = new GovernorHelper(mock, mode);
       await helper.connect(owner).delegate({ token, to: voter1, tokenId: NFT0 });
+      await mineFB();
+
       await helper.connect(owner).delegate({ token, to: voter2, tokenId: NFT1 });
+      await mineFB();
+
       await helper.connect(owner).delegate({ token, to: voter2, tokenId: NFT2 });
+      await mineFB();
       await helper.connect(owner).delegate({ token, to: voter3, tokenId: NFT3 });
+      await mineFB();
       await helper.connect(owner).delegate({ token, to: voter4, tokenId: NFT4 });
 
       return {
@@ -63,8 +85,9 @@ describe('GovernorERC721', function () {
     };
 
     describe(`using ${Token}`, function () {
-      beforeEach(async function () {
-        Object.assign(this, await loadFixture(fixture));
+      before(async function () {
+        Object.assign(this, await fixture());
+        await mineFB();
         // initiate fresh proposal
         this.proposal = this.helper.setProposal(
           [
@@ -90,42 +113,44 @@ describe('GovernorERC721', function () {
         expect(await this.token.getVotes(this.voter3)).to.equal(1n); // NFT3
         expect(await this.token.getVotes(this.voter4)).to.equal(1n); // NFT4
       });
+      // TODO)): not support time interface
+      if (env.network.name === 'hardhat') {
+        it('voting with ERC721 token', async function () {
+          await this.helper.propose();
+          await this.helper.waitForSnapshot();
 
-      it('voting with ERC721 token', async function () {
-        await this.helper.propose();
-        await this.helper.waitForSnapshot();
+          await expect(this.helper.connect(this.voter1).vote({ support: VoteType.For }))
+            .to.emit(this.mock, 'VoteCast')
+            .withArgs(this.voter1, this.proposal.id, VoteType.For, 1n, '');
 
-        await expect(this.helper.connect(this.voter1).vote({ support: VoteType.For }))
-          .to.emit(this.mock, 'VoteCast')
-          .withArgs(this.voter1, this.proposal.id, VoteType.For, 1n, '');
+          await expect(this.helper.connect(this.voter2).vote({ support: VoteType.For }))
+            .to.emit(this.mock, 'VoteCast')
+            .withArgs(this.voter2, this.proposal.id, VoteType.For, 2n, '');
 
-        await expect(this.helper.connect(this.voter2).vote({ support: VoteType.For }))
-          .to.emit(this.mock, 'VoteCast')
-          .withArgs(this.voter2, this.proposal.id, VoteType.For, 2n, '');
+          await expect(this.helper.connect(this.voter3).vote({ support: VoteType.Against }))
+            .to.emit(this.mock, 'VoteCast')
+            .withArgs(this.voter3, this.proposal.id, VoteType.Against, 1n, '');
 
-        await expect(this.helper.connect(this.voter3).vote({ support: VoteType.Against }))
-          .to.emit(this.mock, 'VoteCast')
-          .withArgs(this.voter3, this.proposal.id, VoteType.Against, 1n, '');
+          await expect(this.helper.connect(this.voter4).vote({ support: VoteType.Abstain }))
+            .to.emit(this.mock, 'VoteCast')
+            .withArgs(this.voter4, this.proposal.id, VoteType.Abstain, 1n, '');
 
-        await expect(this.helper.connect(this.voter4).vote({ support: VoteType.Abstain }))
-          .to.emit(this.mock, 'VoteCast')
-          .withArgs(this.voter4, this.proposal.id, VoteType.Abstain, 1n, '');
+          await this.helper.waitForDeadline();
+          await this.helper.execute();
 
-        await this.helper.waitForDeadline();
-        await this.helper.execute();
+          expect(await this.mock.hasVoted(this.proposal.id, this.owner)).to.be.false;
+          expect(await this.mock.hasVoted(this.proposal.id, this.voter1)).to.be.true;
+          expect(await this.mock.hasVoted(this.proposal.id, this.voter2)).to.be.true;
+          expect(await this.mock.hasVoted(this.proposal.id, this.voter3)).to.be.true;
+          expect(await this.mock.hasVoted(this.proposal.id, this.voter4)).to.be.true;
 
-        expect(await this.mock.hasVoted(this.proposal.id, this.owner)).to.be.false;
-        expect(await this.mock.hasVoted(this.proposal.id, this.voter1)).to.be.true;
-        expect(await this.mock.hasVoted(this.proposal.id, this.voter2)).to.be.true;
-        expect(await this.mock.hasVoted(this.proposal.id, this.voter3)).to.be.true;
-        expect(await this.mock.hasVoted(this.proposal.id, this.voter4)).to.be.true;
-
-        expect(await this.mock.proposalVotes(this.proposal.id)).to.deep.equal([
-          1n, // againstVotes
-          3n, // forVotes
-          1n, // abstainVotes
-        ]);
-      });
+          expect(await this.mock.proposalVotes(this.proposal.id)).to.deep.equal([
+            1n, // againstVotes
+            3n, // forVotes
+            1n, // abstainVotes
+          ]);
+        });
+      }
     });
   }
 });

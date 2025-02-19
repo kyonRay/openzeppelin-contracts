@@ -1,10 +1,10 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../../helpers/fb-deploy-helper');
 
 async function fixture() {
   const [holder, operator, receiver, other] = await ethers.getSigners();
-  const token = await ethers.deployContract('$ERC1155Pausable', ['https://token-cdn-domain/{id}.json']);
+  const token = await deployFBContract('$ERC1155Pausable', ['https://token-cdn-domain/{id}.json']);
   return { token, holder, operator, receiver, other };
 }
 
@@ -15,7 +15,7 @@ describe('ERC1155Pausable', function () {
   const secondTokenValue = 23n;
 
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
   describe('when token is paused', function () {

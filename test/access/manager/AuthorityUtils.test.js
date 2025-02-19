@@ -1,15 +1,15 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 
 async function fixture() {
   const [user, other] = await ethers.getSigners();
 
-  const mock = await ethers.deployContract('$AuthorityUtils');
-  const notAuthorityMock = await ethers.deployContract('NotAuthorityMock');
-  const authorityNoDelayMock = await ethers.deployContract('AuthorityNoDelayMock');
-  const authorityDelayMock = await ethers.deployContract('AuthorityDelayMock');
-  const authorityNoResponse = await ethers.deployContract('AuthorityNoResponse');
+  const mock = await deployFBContract('$AuthorityUtils');
+  const notAuthorityMock = await deployFBContract('NotAuthorityMock');
+  const authorityNoDelayMock = await deployFBContract('AuthorityNoDelayMock');
+  const authorityDelayMock = await deployFBContract('AuthorityDelayMock');
+  const authorityNoResponse = await deployFBContract('AuthorityNoResponse');
 
   return {
     user,
@@ -23,8 +23,8 @@ async function fixture() {
 }
 
 describe('AuthorityUtils', function () {
-  beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+  before(async function () {
+    Object.assign(this, await fixture());
   });
 
   describe('canCallWithDelay', function () {

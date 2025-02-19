@@ -1,8 +1,8 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
 const { RevertType } = require('../../../helpers/enums');
 const { PANIC_CODES } = require('@nomicfoundation/hardhat-chai-matchers/panic');
+const { deployFBContract } = require('../../../helpers/fb-deploy-helper');
 
 const firstTokenId = 1n;
 const secondTokenId = 2n;
@@ -16,11 +16,11 @@ const deployReceiver = (
   revertType,
   returnValueSingle = RECEIVER_SINGLE_MAGIC_VALUE,
   returnValueBatched = RECEIVER_BATCH_MAGIC_VALUE,
-) => ethers.deployContract('$ERC1155ReceiverMock', [returnValueSingle, returnValueBatched, revertType]);
+) => deployFBContract('$ERC1155ReceiverMock', [returnValueSingle, returnValueBatched, revertType]);
 
 const fixture = async () => {
   const [eoa, operator, owner] = await ethers.getSigners();
-  const utils = await ethers.deployContract('$ERC1155Utils');
+  const utils = await deployFBContract('$ERC1155Utils');
 
   const receivers = {
     correct: await deployReceiver(RevertType.None),
@@ -29,7 +29,7 @@ const fixture = async () => {
     empty: await deployReceiver(RevertType.RevertWithoutMessage),
     customError: await deployReceiver(RevertType.RevertWithCustomError),
     panic: await deployReceiver(RevertType.Panic),
-    nonReceiver: await ethers.deployContract('CallReceiverMock'),
+    nonReceiver: await deployFBContract('CallReceiverMock'),
     eoa,
   };
 
@@ -37,8 +37,8 @@ const fixture = async () => {
 };
 
 describe('ERC1155Utils', function () {
-  beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+  before(async function () {
+    Object.assign(this, await fixture());
   });
 
   describe('onERC1155Received', function () {

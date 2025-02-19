@@ -1,19 +1,19 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../helpers/fb-deploy-helper');
 
 // Replace "+/" with "-_" in the char table, and remove the padding
 // see https://datatracker.ietf.org/doc/html/rfc4648#section-5
 const base64toBase64Url = str => str.replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
 
 async function fixture() {
-  const mock = await ethers.deployContract('$Base64');
+  const mock = await deployFBContract('$Base64');
   return { mock };
 }
 
 describe('Strings', function () {
-  beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+  before(async function () {
+    Object.assign(this, await fixture());
   });
 
   describe('base64', function () {
@@ -49,7 +49,7 @@ describe('Strings', function () {
   });
 
   it('Encode reads beyond the input buffer into dirty memory', async function () {
-    const mock = await ethers.deployContract('Base64Dirty');
+    const mock = await deployFBContract('Base64Dirty');
     const buffer32 = ethers.id('example');
     const buffer31 = buffer32.slice(0, -2);
 

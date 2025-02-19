@@ -1,17 +1,17 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 
 const { domainSeparator, hashTypedData } = require('../../helpers/eip712');
 
 async function fixture() {
-  const mock = await ethers.deployContract('$MessageHashUtils');
+  const mock = await deployFBContract('$MessageHashUtils');
   return { mock };
 }
 
 describe('MessageHashUtils', function () {
-  beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+  before(async function () {
+    Object.assign(this, await fixture());
   });
 
   describe('toEthSignedMessageHash', function () {

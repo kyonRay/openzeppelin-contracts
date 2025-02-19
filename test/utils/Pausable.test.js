@@ -1,18 +1,18 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../helpers/fb-deploy-helper');
 
 async function fixture() {
   const [pauser] = await ethers.getSigners();
 
-  const mock = await ethers.deployContract('PausableMock');
+  const mock = await deployFBContract('PausableMock');
 
   return { pauser, mock };
 }
 
 describe('Pausable', function () {
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
   describe('when unpaused', function () {

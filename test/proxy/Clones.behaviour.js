@@ -19,9 +19,10 @@ module.exports = function shouldBehaveLikeClone() {
     it('factory has enough balance', async function () {
       await this.deployer.sendTransaction({ to: this.factory, value });
 
+      const initValue = await ethers.provider.getBalance(this.factory);
       const instance = await this.createClone({ deployValue: value });
-      await expect(instance.deploymentTransaction()).to.changeEtherBalances([this.factory, instance], [-value, value]);
 
+      expect(await ethers.provider.getBalance(this.factory)).to.equal(initValue - value);
       expect(await ethers.provider.getBalance(instance)).to.equal(value);
     });
 

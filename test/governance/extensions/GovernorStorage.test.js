@@ -1,8 +1,8 @@
-const { ethers } = require('hardhat');
+const { ethers, network } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
 const { anyValue } = require('@nomicfoundation/hardhat-chai-matchers/withArgs');
 const { PANIC_CODES } = require('@nomicfoundation/hardhat-chai-matchers/panic');
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 
 const { GovernorHelper, timelockSalt } = require('../../helpers/governance');
 const { VoteType } = require('../../helpers/enums');
@@ -31,11 +31,11 @@ describe('GovernorStorage', function () {
   for (const { Token, mode } of TOKENS) {
     const fixture = async () => {
       const [deployer, owner, proposer, voter1, voter2, voter3, voter4] = await ethers.getSigners();
-      const receiver = await ethers.deployContract('CallReceiverMock');
+      const receiver = await deployFBContract('CallReceiverMock');
 
-      const token = await ethers.deployContract(Token, [tokenName, tokenSymbol, tokenName, version]);
-      const timelock = await ethers.deployContract('TimelockController', [delay, [], [], deployer]);
-      const mock = await ethers.deployContract('$GovernorStorageMock', [
+      const token = await deployFBContract(Token, [tokenName, tokenSymbol, version]);
+      const timelock = await deployFBContract('TimelockController', [delay, [], [], deployer]);
+      const mock = await deployFBContract('$GovernorStorageMock', [
         name,
         votingDelay,
         votingPeriod,
@@ -65,7 +65,7 @@ describe('GovernorStorage', function () {
 
     describe(`using ${Token}`, function () {
       beforeEach(async function () {
-        Object.assign(this, await loadFixture(fixture));
+        Object.assign(this, await fixture());
         // initiate fresh proposal
         this.proposal = this.helper.setProposal(
           [
@@ -116,40 +116,41 @@ describe('GovernorStorage', function () {
           ]);
         });
       });
+      // TODO)): not support time interface
+      if (network.name === 'hardhat') {
+        it('queue and execute by id', async function () {
+          await this.helper.propose();
+          await this.helper.waitForSnapshot();
+          await this.helper.connect(this.voter1).vote({ support: VoteType.For });
+          await this.helper.connect(this.voter2).vote({ support: VoteType.For });
+          await this.helper.connect(this.voter3).vote({ support: VoteType.Against });
+          await this.helper.connect(this.voter4).vote({ support: VoteType.Abstain });
+          await this.helper.waitForDeadline();
 
-      it('queue and execute by id', async function () {
-        await this.helper.propose();
-        await this.helper.waitForSnapshot();
-        await this.helper.connect(this.voter1).vote({ support: VoteType.For });
-        await this.helper.connect(this.voter2).vote({ support: VoteType.For });
-        await this.helper.connect(this.voter3).vote({ support: VoteType.Against });
-        await this.helper.connect(this.voter4).vote({ support: VoteType.Abstain });
-        await this.helper.waitForDeadline();
+          await expect(this.mock.queue(this.proposal.id))
+            .to.emit(this.mock, 'ProposalQueued')
+            .withArgs(this.proposal.id, anyValue)
+            .to.emit(this.timelock, 'CallScheduled')
+            .withArgs(this.proposal.timelockid, ...Array(6).fill(anyValue))
+            .to.emit(this.timelock, 'CallSalt')
+            .withArgs(this.proposal.timelockid, anyValue);
 
-        await expect(this.mock.queue(this.proposal.id))
-          .to.emit(this.mock, 'ProposalQueued')
-          .withArgs(this.proposal.id, anyValue)
-          .to.emit(this.timelock, 'CallScheduled')
-          .withArgs(this.proposal.timelockid, ...Array(6).fill(anyValue))
-          .to.emit(this.timelock, 'CallSalt')
-          .withArgs(this.proposal.timelockid, anyValue);
+          await this.helper.waitForEta();
 
-        await this.helper.waitForEta();
-
-        await expect(this.mock.execute(this.proposal.id))
-          .to.emit(this.mock, 'ProposalExecuted')
-          .withArgs(this.proposal.id)
-          .to.emit(this.timelock, 'CallExecuted')
-          .withArgs(this.proposal.timelockid, ...Array(4).fill(anyValue))
-          .to.emit(this.receiver, 'MockFunctionCalled');
-      });
-
-      it('cancel by id', async function () {
-        await this.helper.connect(this.proposer).propose();
-        await expect(this.mock.connect(this.proposer).cancel(this.proposal.id))
-          .to.emit(this.mock, 'ProposalCanceled')
-          .withArgs(this.proposal.id);
-      });
+          await expect(this.mock.execute(this.proposal.id))
+            .to.emit(this.mock, 'ProposalExecuted')
+            .withArgs(this.proposal.id)
+            .to.emit(this.timelock, 'CallExecuted')
+            .withArgs(this.proposal.timelockid, ...Array(4).fill(anyValue))
+            .to.emit(this.receiver, 'MockFunctionCalled');
+        });
+        it('cancel by id', async function () {
+          await this.helper.connect(this.proposer).propose();
+          await expect(this.mock.connect(this.proposer).cancel(this.proposal.id))
+            .to.emit(this.mock, 'ProposalCanceled')
+            .withArgs(this.proposal.id);
+        });
+      }
     });
   }
 });

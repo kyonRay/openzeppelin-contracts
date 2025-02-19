@@ -1,6 +1,5 @@
-const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 
 const { VALUE_SIZES } = require('../../../scripts/generate/templates/Checkpoints.opts');
 
@@ -8,7 +7,7 @@ describe('Checkpoints', function () {
   for (const length of VALUE_SIZES) {
     describe(`Trace${length}`, function () {
       const fixture = async () => {
-        const mock = await ethers.deployContract('$Checkpoints');
+        const mock = await deployFBContract('$Checkpoints');
         const methods = {
           at: (...args) => mock.getFunction(`$at_Checkpoints_Trace${length}`)(0, ...args),
           latest: (...args) => mock.getFunction(`$latest_Checkpoints_Trace${length}`)(0, ...args),
@@ -25,7 +24,7 @@ describe('Checkpoints', function () {
       };
 
       beforeEach(async function () {
-        Object.assign(this, await loadFixture(fixture));
+        Object.assign(this, await fixture());
       });
 
       describe('without checkpoints', function () {

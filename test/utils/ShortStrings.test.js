@@ -1,6 +1,6 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../helpers/fb-deploy-helper');
 
 const FALLBACK_SENTINEL = ethers.zeroPadValue('0xFF', 32);
 
@@ -15,13 +15,13 @@ const encode = str =>
     : FALLBACK_SENTINEL;
 
 async function fixture() {
-  const mock = await ethers.deployContract('$ShortStrings');
+  const mock = await deployFBContract('$ShortStrings');
   return { mock };
 }
 
 describe('ShortStrings', function () {
-  beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+  before(async function () {
+    Object.assign(this, await fixture());
   });
 
   for (const str of [0, 1, 16, 31, 32, 64, 1024].map(length => 'a'.repeat(length))) {

@@ -1,6 +1,6 @@
-const { ethers } = require('hardhat');
+const { ethers, network } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../../helpers/fb-deploy-helper');
 
 const { shouldBehaveLikeERC20 } = require('../ERC20.behavior');
 
@@ -14,17 +14,17 @@ async function fixture() {
   const accounts = await ethers.getSigners();
   const [holder, recipient, other] = accounts;
 
-  const underlying = await ethers.deployContract('$ERC20DecimalsMock', [name, symbol, decimals]);
+  const underlying = await deployFBContract('$ERC20DecimalsMock', [name, symbol, decimals]);
   await underlying.$_mint(holder, initialSupply);
 
-  const token = await ethers.deployContract('$ERC20Wrapper', [`Wrapped ${name}`, `W${symbol}`, underlying]);
+  const token = await deployFBContract('$ERC20Wrapper', [`Wrapped ${name}`, `W${symbol}`, underlying]);
 
   return { accounts, holder, recipient, other, underlying, token };
 }
 
 describe('ERC20Wrapper', function () {
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
   afterEach('Underlying balance', async function () {
@@ -44,8 +44,8 @@ describe('ERC20Wrapper', function () {
   });
 
   it('decimals default back to 18 if token has no metadata', async function () {
-    const noDecimals = await ethers.deployContract('CallReceiverMock');
-    const token = await ethers.deployContract('$ERC20Wrapper', [`Wrapped ${name}`, `W${symbol}`, noDecimals]);
+    const noDecimals = await deployFBContract('CallReceiverMock');
+    const token = await deployFBContract('$ERC20Wrapper', [`Wrapped ${name}`, `W${symbol}`, noDecimals]);
     expect(await token.decimals()).to.equal(18n);
   });
 
@@ -57,18 +57,27 @@ describe('ERC20Wrapper', function () {
     it('executes with approval', async function () {
       await this.underlying.connect(this.holder).approve(this.token, initialSupply);
 
+      const initValueOfHolder = await this.token.balanceOf(this.holder);
+      const initValueOfHolderUnderlying = await this.underlying.balanceOf(this.holder);
+      const initValueOfTokenUnderlying = await this.underlying.balanceOf(this.token);
       const tx = await this.token.connect(this.holder).depositFor(this.holder, initialSupply);
       await expect(tx)
         .to.emit(this.underlying, 'Transfer')
         .withArgs(this.holder, this.token, initialSupply)
         .to.emit(this.token, 'Transfer')
         .withArgs(ethers.ZeroAddress, this.holder, initialSupply);
-      await expect(tx).to.changeTokenBalances(
-        this.underlying,
-        [this.holder, this.token],
-        [-initialSupply, initialSupply],
-      );
-      await expect(tx).to.changeTokenBalance(this.token, this.holder, initialSupply);
+      if (network.name === 'hardhat') {
+        await expect(tx).to.changeTokenBalances(
+          this.underlying,
+          [this.holder, this.token],
+          [-initialSupply, initialSupply],
+        );
+        await expect(tx).to.changeTokenBalance(this.token, this.holder, initialSupply);
+      } else {
+        expect(await this.underlying.balanceOf(this.holder)).to.equal(initValueOfHolderUnderlying - initialSupply);
+        expect(await this.underlying.balanceOf(this.token)).to.equal(initValueOfTokenUnderlying + initialSupply);
+        expect(await this.token.balanceOf(this.holder)).to.equal(initValueOfHolder + initialSupply);
+      }
     });
 
     it('reverts when missing approval', async function () {
@@ -87,6 +96,10 @@ describe('ERC20Wrapper', function () {
 
     it('deposits to other account', async function () {
       await this.underlying.connect(this.holder).approve(this.token, initialSupply);
+      const initValueOfHolder = await this.token.balanceOf(this.holder);
+      const initValueOfRecipient = await this.token.balanceOf(this.recipient);
+      const initValueOfHolderUnderlying = await this.underlying.balanceOf(this.holder);
+      const initValueOfTokenUnderlying = await this.underlying.balanceOf(this.token);
 
       const tx = await this.token.connect(this.holder).depositFor(this.recipient, initialSupply);
       await expect(tx)
@@ -94,12 +107,20 @@ describe('ERC20Wrapper', function () {
         .withArgs(this.holder, this.token.target, initialSupply)
         .to.emit(this.token, 'Transfer')
         .withArgs(ethers.ZeroAddress, this.recipient, initialSupply);
-      await expect(tx).to.changeTokenBalances(
-        this.underlying,
-        [this.holder, this.token],
-        [-initialSupply, initialSupply],
-      );
-      await expect(tx).to.changeTokenBalances(this.token, [this.holder, this.recipient], [0, initialSupply]);
+
+      if (network.name === 'hardhat') {
+        await expect(tx).to.changeTokenBalances(
+          this.underlying,
+          [this.holder, this.token],
+          [-initialSupply, initialSupply],
+        );
+        await expect(tx).to.changeTokenBalances(this.token, [this.holder, this.recipient], [0, initialSupply]);
+      } else {
+        expect(await this.underlying.balanceOf(this.holder)).to.equal(initValueOfHolderUnderlying - initialSupply);
+        expect(await this.underlying.balanceOf(this.token)).to.equal(initValueOfTokenUnderlying + initialSupply);
+        expect(await this.token.balanceOf(this.holder)).to.equal(initValueOfHolder);
+        expect(await this.token.balanceOf(this.recipient)).to.equal(initValueOfRecipient + initialSupply);
+      }
     });
 
     it('reverts minting to the wrapper contract', async function () {
@@ -125,6 +146,9 @@ describe('ERC20Wrapper', function () {
 
     it('executes when operation is valid', async function () {
       const value = 42n;
+      const initValueOfHolder = await this.token.balanceOf(this.holder);
+      const initValueOfHolderUnderlying = await this.underlying.balanceOf(this.holder);
+      const initValueOfTokenUnderlying = await this.underlying.balanceOf(this.token);
 
       const tx = await this.token.connect(this.holder).withdrawTo(this.holder, value);
       await expect(tx)
@@ -132,38 +156,69 @@ describe('ERC20Wrapper', function () {
         .withArgs(this.token.target, this.holder, value)
         .to.emit(this.token, 'Transfer')
         .withArgs(this.holder, ethers.ZeroAddress, value);
-      await expect(tx).to.changeTokenBalances(this.underlying, [this.token, this.holder], [-value, value]);
-      await expect(tx).to.changeTokenBalance(this.token, this.holder, -value);
+      if (network.name === 'hardhat') {
+        await expect(tx).to.changeTokenBalances(this.underlying, [this.token, this.holder], [-value, value]);
+        await expect(tx).to.changeTokenBalance(this.token, this.holder, -value);
+      } else {
+        expect(await this.underlying.balanceOf(this.holder)).to.equal(initValueOfHolderUnderlying + value);
+        expect(await this.underlying.balanceOf(this.token)).to.equal(initValueOfTokenUnderlying - value);
+        expect(await this.token.balanceOf(this.holder)).to.equal(initValueOfHolder - value);
+      }
     });
 
     it('entire balance', async function () {
+      const initValueOfHolder = await this.token.balanceOf(this.holder);
+      const initValueOfHolderUnderlying = await this.underlying.balanceOf(this.holder);
+      const initValueOfTokenUnderlying = await this.underlying.balanceOf(this.token);
+
       const tx = await this.token.connect(this.holder).withdrawTo(this.holder, initialSupply);
       await expect(tx)
         .to.emit(this.underlying, 'Transfer')
         .withArgs(this.token.target, this.holder, initialSupply)
         .to.emit(this.token, 'Transfer')
         .withArgs(this.holder, ethers.ZeroAddress, initialSupply);
-      await expect(tx).to.changeTokenBalances(
-        this.underlying,
-        [this.token, this.holder],
-        [-initialSupply, initialSupply],
-      );
-      await expect(tx).to.changeTokenBalance(this.token, this.holder, -initialSupply);
+      if (network.name === 'hardhat') {
+        await expect(tx).to.changeTokenBalances(
+          this.underlying,
+          [this.token, this.holder],
+          [-initialSupply, initialSupply],
+        );
+        await expect(tx).to.changeTokenBalance(this.token, this.holder, -initialSupply);
+      } else {
+        expect(await this.underlying.balanceOf(this.holder)).to.equal(initValueOfHolderUnderlying + initialSupply);
+        expect(await this.underlying.balanceOf(this.token)).to.equal(initValueOfTokenUnderlying - initialSupply);
+        expect(await this.token.balanceOf(this.holder)).to.equal(initValueOfHolder - initialSupply);
+      }
     });
 
     it('to other account', async function () {
+      const initValueOfHolder = await this.token.balanceOf(this.holder);
+      const initValueOfHolderUnderlying = await this.underlying.balanceOf(this.holder);
+      const initValueOfTokenUnderlying = await this.underlying.balanceOf(this.token);
+      const initValueOfRecipientUnderlying = await this.underlying.balanceOf(this.recipient);
+
       const tx = await this.token.connect(this.holder).withdrawTo(this.recipient, initialSupply);
       await expect(tx)
         .to.emit(this.underlying, 'Transfer')
         .withArgs(this.token, this.recipient, initialSupply)
         .to.emit(this.token, 'Transfer')
         .withArgs(this.holder, ethers.ZeroAddress, initialSupply);
-      await expect(tx).to.changeTokenBalances(
-        this.underlying,
-        [this.token, this.holder, this.recipient],
-        [-initialSupply, 0, initialSupply],
-      );
-      await expect(tx).to.changeTokenBalance(this.token, this.holder, -initialSupply);
+
+      if (network.name === 'hardhat') {
+        await expect(tx).to.changeTokenBalances(
+          this.underlying,
+          [this.token, this.holder, this.recipient],
+          [-initialSupply, 0, initialSupply],
+        );
+        await expect(tx).to.changeTokenBalance(this.token, this.holder, -initialSupply);
+      } else {
+        expect(await this.underlying.balanceOf(this.holder)).to.equal(initValueOfHolderUnderlying);
+        expect(await this.underlying.balanceOf(this.token)).to.equal(initValueOfTokenUnderlying - initialSupply);
+        expect(await this.underlying.balanceOf(this.recipient)).to.equal(
+          initValueOfRecipientUnderlying + initialSupply,
+        );
+        expect(await this.token.balanceOf(this.holder)).to.equal(initValueOfHolder - initialSupply);
+      }
     });
 
     it('reverts withdrawing to the wrapper contract', async function () {
@@ -176,19 +231,29 @@ describe('ERC20Wrapper', function () {
   describe('recover', function () {
     it('nothing to recover', async function () {
       await this.underlying.connect(this.holder).approve(this.token, initialSupply);
+      const initValue = await this.token.balanceOf(this.recipient);
       await this.token.connect(this.holder).depositFor(this.holder, initialSupply);
 
       const tx = await this.token.$_recover(this.recipient);
       await expect(tx).to.emit(this.token, 'Transfer').withArgs(ethers.ZeroAddress, this.recipient, 0n);
-      await expect(tx).to.changeTokenBalance(this.token, this.recipient, 0);
+      if (network.name === 'hardhat') {
+        await expect(tx).to.changeTokenBalance(this.token, this.recipient, 0);
+      } else {
+        expect(await this.token.balanceOf(this.recipient)).to.equal(initValue);
+      }
     });
 
     it('something to recover', async function () {
+      const initValue = await this.token.balanceOf(this.recipient);
       await this.underlying.connect(this.holder).transfer(this.token, initialSupply);
 
       const tx = await this.token.$_recover(this.recipient);
       await expect(tx).to.emit(this.token, 'Transfer').withArgs(ethers.ZeroAddress, this.recipient, initialSupply);
-      await expect(tx).to.changeTokenBalance(this.token, this.recipient, initialSupply);
+      if (network.name === 'hardhat') {
+        await expect(tx).to.changeTokenBalance(this.token, this.recipient, initialSupply);
+      } else {
+        expect(await this.token.balanceOf(this.recipient)).to.equal(initValue + initialSupply);
+      }
     });
   });
 

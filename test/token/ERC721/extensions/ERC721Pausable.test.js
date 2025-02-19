@@ -1,6 +1,6 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../../helpers/fb-deploy-helper');
 
 const name = 'Non Fungible Token';
 const symbol = 'NFT';
@@ -10,13 +10,13 @@ const data = ethers.Typed.bytes('0x42');
 
 async function fixture() {
   const [owner, receiver, operator] = await ethers.getSigners();
-  const token = await ethers.deployContract('$ERC721Pausable', [name, symbol]);
+  const token = await deployFBContract('$ERC721Pausable', [name, symbol]);
   return { owner, receiver, operator, token };
 }
 
 describe('ERC721Pausable', function () {
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
   describe('when token is paused', function () {

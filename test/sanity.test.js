@@ -1,6 +1,8 @@
-const { ethers } = require('hardhat');
+const { ethers, network } = require('hardhat');
 const { expect } = require('chai');
 const { loadFixture, mine } = require('@nomicfoundation/hardhat-network-helpers');
+const env = require('hardhat');
+const { mineFB } = require('./helpers/fb-deploy-helper');
 
 async function fixture() {
   return {};
@@ -8,7 +10,11 @@ async function fixture() {
 
 describe('Environment sanity', function () {
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    if (env.network.name === 'hardhat') {
+      Object.assign(this, await loadFixture(fixture));
+    } else {
+      Object.assign(this, await fixture());
+    }
   });
 
   describe('snapshot', function () {
@@ -16,12 +22,17 @@ describe('Environment sanity', function () {
 
     it('cache and mine', async function () {
       blockNumberBefore = await ethers.provider.getBlockNumber();
-      await mine();
+      if (env.network.name === 'hardhat') {
+        await mine();
+      } else {
+        await mineFB();
+      }
       expect(await ethers.provider.getBlockNumber()).to.equal(blockNumberBefore + 1);
     });
-
-    it('check snapshot', async function () {
-      expect(await ethers.provider.getBlockNumber()).to.equal(blockNumberBefore);
-    });
+    if (network.name === 'hardhat') {
+      it('check snapshot', async function () {
+        expect(await ethers.provider.getBlockNumber()).to.equal(blockNumberBefore);
+      });
+    }
   });
 });

@@ -1,5 +1,4 @@
-const { ethers } = require('hardhat');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 
 const { mapValues } = require('../../helpers/iterate');
 const { generators } = require('../../helpers/random');
@@ -17,7 +16,7 @@ const getMethods = (mock, fnSigs) => {
 };
 
 async function fixture() {
-  const mock = await ethers.deployContract('$EnumerableSet');
+  const mock = await deployFBContract('$EnumerableSet');
 
   const env = Object.fromEntries(
     TYPES.map(({ name, type, base, size }) => [
@@ -49,7 +48,7 @@ async function fixture() {
 
 describe('EnumerableSet', function () {
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
   for (const { type } of TYPES) {

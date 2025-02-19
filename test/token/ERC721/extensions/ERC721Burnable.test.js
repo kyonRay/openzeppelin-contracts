@@ -1,6 +1,6 @@
 const { ethers } = require('hardhat');
+const { deployFBContract } = require('../../../helpers/fb-deploy-helper');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
 
 const name = 'Non Fungible Token';
 const symbol = 'NFT';
@@ -10,13 +10,13 @@ const unknownTokenId = 3n;
 
 async function fixture() {
   const [owner, approved, another] = await ethers.getSigners();
-  const token = await ethers.deployContract('$ERC721Burnable', [name, symbol]);
+  const token = await deployFBContract('$ERC721Burnable', [name, symbol]);
   return { owner, approved, another, token };
 }
 
 describe('ERC721Burnable', function () {
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
   describe('like a burnable ERC721', function () {

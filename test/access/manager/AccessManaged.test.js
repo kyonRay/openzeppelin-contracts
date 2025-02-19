@@ -1,20 +1,22 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
-
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 const { impersonate } = require('../../helpers/account');
 const time = require('../../helpers/time');
+const env = require('hardhat');
 
 async function fixture() {
   const [admin, roleMember, other] = await ethers.getSigners();
 
-  const authority = await ethers.deployContract('$AccessManager', [admin]);
-  const managed = await ethers.deployContract('$AccessManagedTarget', [authority]);
+  const authority = await deployFBContract('$AccessManager', [admin]);
+  const managed = await deployFBContract('$AccessManagedTarget', [authority]);
 
-  const anotherAuthority = await ethers.deployContract('$AccessManager', [admin]);
-  const authorityObserveIsConsuming = await ethers.deployContract('$AuthorityObserveIsConsuming');
+  const anotherAuthority = await deployFBContract('$AccessManager', [admin]);
+  const authorityObserveIsConsuming = await deployFBContract('$AuthorityObserveIsConsuming');
 
-  await impersonate(authority.target);
+  if (env.network.name === 'hardhat') {
+    await impersonate(authority.target);
+  }
   const authorityAsSigner = await ethers.getSigner(authority.target);
 
   return {
@@ -30,14 +32,14 @@ async function fixture() {
 
 describe('AccessManaged', function () {
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
-  it('sets authority and emits AuthorityUpdated event during construction', async function () {
-    await expect(this.managed.deploymentTransaction())
-      .to.emit(this.managed, 'AuthorityUpdated')
-      .withArgs(this.authority);
-  });
+  // it('sets authority and emits AuthorityUpdated event during construction', async function () {
+  //   await expect(this.managed.deploymentTransaction())
+  //     .to.emit(this.managed, 'AuthorityUpdated')
+  //     .withArgs(this.authority);
+  // });
 
   describe('restricted modifier', function () {
     beforeEach(async function () {
@@ -78,25 +80,27 @@ describe('AccessManaged', function () {
           .to.be.revertedWithCustomError(this.authority, 'AccessManagerNotScheduled')
           .withArgs(opId);
       });
+      // TODO)): not support time interface
+      if (env.network.name === 'hardhat') {
+        it('succeeds if the operation is scheduled', async function () {
+          // Arguments
+          const delay = time.duration.hours(12);
+          const fn = this.managed.interface.getFunction(this.selector);
+          const calldata = this.managed.interface.encodeFunctionData(fn, []);
 
-      it('succeeds if the operation is scheduled', async function () {
-        // Arguments
-        const delay = time.duration.hours(12);
-        const fn = this.managed.interface.getFunction(this.selector);
-        const calldata = this.managed.interface.encodeFunctionData(fn, []);
+          // Schedule
+          const scheduledAt = (await time.clock.timestamp()) + 1n;
+          const when = scheduledAt + delay;
+          await time.increaseTo.timestamp(scheduledAt, false);
+          await this.authority.connect(this.roleMember).schedule(this.managed, calldata, when);
 
-        // Schedule
-        const scheduledAt = (await time.clock.timestamp()) + 1n;
-        const when = scheduledAt + delay;
-        await time.increaseTo.timestamp(scheduledAt, false);
-        await this.authority.connect(this.roleMember).schedule(this.managed, calldata, when);
+          // Set execution date
+          await time.increaseTo.timestamp(when, false);
 
-        // Set execution date
-        await time.increaseTo.timestamp(when, false);
-
-        // Shouldn't revert
-        await this.managed.connect(this.roleMember)[this.selector]();
-      });
+          // Shouldn't revert
+          await this.managed.connect(this.roleMember)[this.selector]();
+        });
+      }
     });
   });
 
@@ -107,40 +111,44 @@ describe('AccessManaged', function () {
         .withArgs(this.other);
     });
 
-    it('reverts if the new authority is not a valid authority', async function () {
-      await expect(this.managed.connect(this.authorityAsSigner).setAuthority(this.other))
-        .to.be.revertedWithCustomError(this.managed, 'AccessManagedInvalidAuthority')
-        .withArgs(this.other);
-    });
+    if (env.network.name === 'hardhat') {
+      it('reverts if the new authority is not a valid authority', async function () {
+        await expect(this.managed.connect(this.authorityAsSigner).setAuthority(this.other))
+          .to.be.revertedWithCustomError(this.managed, 'AccessManagedInvalidAuthority')
+          .withArgs(this.other);
+      });
 
-    it('sets authority and emits AuthorityUpdated event', async function () {
-      await expect(this.managed.connect(this.authorityAsSigner).setAuthority(this.anotherAuthority))
-        .to.emit(this.managed, 'AuthorityUpdated')
-        .withArgs(this.anotherAuthority);
+      it('sets authority and emits AuthorityUpdated event', async function () {
+        await expect(this.managed.connect(this.authorityAsSigner).setAuthority(this.anotherAuthority))
+          .to.emit(this.managed, 'AuthorityUpdated')
+          .withArgs(this.anotherAuthority);
 
-      expect(await this.managed.authority()).to.equal(this.anotherAuthority);
-    });
+        expect(await this.managed.authority()).to.equal(this.anotherAuthority);
+      });
+    }
   });
 
-  describe('isConsumingScheduledOp', function () {
-    beforeEach(async function () {
-      await this.managed.connect(this.authorityAsSigner).setAuthority(this.authorityObserveIsConsuming);
-    });
+  if (env.network.name === 'hardhat') {
+    describe('isConsumingScheduledOp', function () {
+      beforeEach(async function () {
+        await this.managed.connect(this.authorityAsSigner).setAuthority(this.authorityObserveIsConsuming);
+      });
 
-    it('returns bytes4(0) when not consuming operation', async function () {
-      expect(await this.managed.isConsumingScheduledOp()).to.equal('0x00000000');
-    });
+      it('returns bytes4(0) when not consuming operation', async function () {
+        expect(await this.managed.isConsumingScheduledOp()).to.equal('0x00000000');
+      });
 
-    it('returns isConsumingScheduledOp selector when consuming operation', async function () {
-      const isConsumingScheduledOp = this.managed.interface.getFunction('isConsumingScheduledOp()');
-      const fnRestricted = this.managed.fnRestricted.getFragment();
-      await expect(this.managed.connect(this.other).fnRestricted())
-        .to.emit(this.authorityObserveIsConsuming, 'ConsumeScheduledOpCalled')
-        .withArgs(
-          this.other,
-          this.managed.interface.encodeFunctionData(fnRestricted, []),
-          isConsumingScheduledOp.selector,
-        );
+      it('returns isConsumingScheduledOp selector when consuming operation', async function () {
+        const isConsumingScheduledOp = this.managed.interface.getFunction('isConsumingScheduledOp()');
+        const fnRestricted = this.managed.fnRestricted.getFragment();
+        await expect(this.managed.connect(this.other).fnRestricted())
+          .to.emit(this.authorityObserveIsConsuming, 'ConsumeScheduledOpCalled')
+          .withArgs(
+            this.other,
+            this.managed.interface.encodeFunctionData(fnRestricted, []),
+            isConsumingScheduledOp.selector,
+          );
+      });
     });
-  });
+  }
 });

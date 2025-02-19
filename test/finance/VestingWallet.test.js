@@ -1,6 +1,6 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../helpers/fb-deploy-helper');
 
 const { min } = require('../helpers/math');
 const time = require('../helpers/time');
@@ -13,9 +13,9 @@ async function fixture() {
   const start = (await time.clock.timestamp()) + time.duration.hours(1);
 
   const [sender, beneficiary] = await ethers.getSigners();
-  const mock = await ethers.deployContract('VestingWallet', [beneficiary, start, duration]);
+  const mock = await deployFBContract('VestingWallet', [beneficiary, start, duration]);
 
-  const token = await ethers.deployContract('$ERC20', ['Name', 'Symbol']);
+  const token = await deployFBContract('$ERC20', ['Name', 'Symbol']);
   await token.$_mint(mock, amount);
   await sender.sendTransaction({ to: mock, value: amount });
 
@@ -29,11 +29,11 @@ async function fixture() {
 
 describe('VestingWallet', function () {
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
   it('rejects zero address for beneficiary', async function () {
-    await expect(ethers.deployContract('VestingWallet', [ethers.ZeroAddress, this.start, this.duration]))
+    await expect(deployFBContract('VestingWallet', [ethers.ZeroAddress, this.start, this.duration]))
       .revertedWithCustomError(this.mock, 'OwnableInvalidOwner')
       .withArgs(ethers.ZeroAddress);
   });

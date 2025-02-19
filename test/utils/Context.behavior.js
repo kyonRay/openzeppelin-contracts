@@ -1,13 +1,12 @@
-const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../helpers/fb-deploy-helper');
 
 async function fixture() {
-  return { contextHelper: await ethers.deployContract('ContextMockCaller', []) };
+  return { contextHelper: await deployFBContract('ContextMockCaller', []) };
 }
 function shouldBehaveLikeRegularContext() {
-  beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+  before(async function () {
+    Object.assign(this, await fixture());
   });
 
   describe('msgSender', function () {

@@ -1,4 +1,4 @@
-const { ethers } = require('hardhat');
+const { ethers, network } = require('hardhat');
 const { expect } = require('chai');
 
 function shouldBehaveLikeERC20(initialSupply, opts = {}) {
@@ -46,7 +46,13 @@ function shouldBehaveLikeERC20(initialSupply, opts = {}) {
             });
 
             it('transfers the requested value', async function () {
-              await expect(this.tx).to.changeTokenBalances(this.token, [this.holder, this.other], [-value, value]);
+              // FIXME)): FB not support history state call
+              if (network.name === 'hardhat') {
+                await expect(this.tx).to.changeTokenBalances(this.token, [this.holder, this.other], [-value, value]);
+              } else {
+                expect(await this.token.balanceOf(this.holder)).to.equal(0n);
+                expect(await this.token.balanceOf(this.other)).to.equal(value);
+              }
             });
 
             it('decreases the spender allowance', async function () {
@@ -174,7 +180,13 @@ function shouldBehaveLikeERC20Transfer(balance) {
       });
 
       it('transfers the requested value', async function () {
-        await expect(this.tx).to.changeTokenBalances(this.token, [this.holder, this.recipient], [-value, value]);
+        // FIXME)): FB not support history state call
+        if (network.name === 'hardhat') {
+          await expect(this.tx).to.changeTokenBalances(this.token, [this.holder, this.recipient], [-value, value]);
+        } else {
+          expect(await this.token.balanceOf(this.holder)).to.equal(0n);
+          expect(await this.token.balanceOf(this.recipient)).to.equal(value);
+        }
       });
 
       it('emits a transfer event', async function () {

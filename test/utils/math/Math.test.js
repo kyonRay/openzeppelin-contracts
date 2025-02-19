@@ -1,6 +1,6 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 const { PANIC_CODES } = require('@nomicfoundation/hardhat-chai-matchers/panic');
 
 const { Rounding } = require('../../helpers/enums');
@@ -22,7 +22,7 @@ async function testCommutative(fn, lhs, rhs, expected, ...extra) {
 }
 
 async function fixture() {
-  const mock = await ethers.deployContract('$Math');
+  const mock = await deployFBContract('$Math');
 
   // disambiguation, we use the version with explicit rounding
   mock.$mulDiv = mock['$mulDiv(uint256,uint256,uint256,uint8)'];
@@ -35,8 +35,8 @@ async function fixture() {
 }
 
 describe('Math', function () {
-  beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+  before(async function () {
+    Object.assign(this, await fixture());
   });
 
   describe('tryAdd', function () {

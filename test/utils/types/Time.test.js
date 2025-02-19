@@ -1,6 +1,6 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 
 const { product } = require('../../helpers/iterate');
 const { max } = require('../../helpers/math');
@@ -37,13 +37,13 @@ const effectSamplesForTimepoint = timepoint => [
 ];
 
 async function fixture() {
-  const mock = await ethers.deployContract('$Time');
+  const mock = await deployFBContract('$Time');
   return { mock };
 }
 
 describe('Time', function () {
-  beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+  before(async function () {
+    Object.assign(this, await fixture());
   });
 
   describe('clocks', function () {

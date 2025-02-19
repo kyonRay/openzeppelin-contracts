@@ -1,6 +1,6 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 
 const TEST_MESSAGE = ethers.id('OpenZeppelin');
 const WRONG_MESSAGE = ethers.id('Nope');
@@ -8,13 +8,13 @@ const NON_HASH_MESSAGE = '0xabcd';
 
 async function fixture() {
   const [signer] = await ethers.getSigners();
-  const mock = await ethers.deployContract('$ECDSA');
+  const mock = await deployFBContract('$ECDSA');
   return { signer, mock };
 }
 
 describe('ECDSA', function () {
-  beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+  before(async function () {
+    Object.assign(this, await fixture());
   });
 
   describe('recover with invalid signature', function () {

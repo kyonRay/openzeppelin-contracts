@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // This file was procedurally generated from scripts/generate/templates/StorageSlotMock.js.
 
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.24;
 
 import {Multicall} from "../utils/Multicall.sol";
 import {StorageSlot} from "../utils/StorageSlot.sol";
@@ -83,5 +83,55 @@ contract StorageSlotMock is Multicall {
 
     function getBytesStorage(uint256 key) public view returns (bytes memory) {
         return bytesMap[key].getBytesSlot().value;
+    }
+
+    event AddressValue(bytes32 slot, address value);
+
+    function tloadAddress(bytes32 slot) public {
+        emit AddressValue(slot, slot.asAddress().sload());
+    }
+
+    function tstore(bytes32 slot, address value) public {
+        slot.asAddress().sstore(value);
+    }
+
+    event BooleanValue(bytes32 slot, bool value);
+
+    function tloadBoolean(bytes32 slot) public {
+        emit BooleanValue(slot, slot.asBoolean().sload());
+    }
+
+    function tstore(bytes32 slot, bool value) public {
+        slot.asBoolean().sstore(value);
+    }
+
+    event Bytes32Value(bytes32 slot, bytes32 value);
+
+    function tloadBytes32(bytes32 slot) public {
+        emit Bytes32Value(slot, slot.asBytes32().sload());
+    }
+
+    function tstore(bytes32 slot, bytes32 value) public {
+        slot.asBytes32().sstore(value);
+    }
+
+    event Uint256Value(bytes32 slot, uint256 value);
+
+    function tloadUint256(bytes32 slot) public {
+        emit Uint256Value(slot, slot.asUint256().sload());
+    }
+
+    function tstore(bytes32 slot, uint256 value) public {
+        slot.asUint256().sstore(value);
+    }
+
+    event Int256Value(bytes32 slot, int256 value);
+
+    function tloadInt256(bytes32 slot) public {
+        emit Int256Value(slot, slot.asInt256().sload());
+    }
+
+    function tstore(bytes32 slot, int256 value) public {
+        slot.asInt256().sstore(value);
     }
 }

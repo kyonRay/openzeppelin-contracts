@@ -1,15 +1,15 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../helpers/fb-deploy-helper');
 const { PANIC_CODES } = require('@nomicfoundation/hardhat-chai-matchers/panic');
 
 async function fixture() {
-  return { mock: await ethers.deployContract('$Panic') };
+  return { mock: await deployFBContract('$Panic') };
 }
 
 describe('Panic', function () {
-  beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+  before(async function () {
+    Object.assign(this, await fixture());
   });
 
   for (const [name, code] of Object.entries({

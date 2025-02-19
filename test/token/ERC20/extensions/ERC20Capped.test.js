@@ -1,6 +1,6 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../../helpers/fb-deploy-helper');
 
 const name = 'My Token';
 const symbol = 'MTKN';
@@ -9,14 +9,14 @@ const cap = 1000n;
 async function fixture() {
   const [user] = await ethers.getSigners();
 
-  const token = await ethers.deployContract('$ERC20Capped', [name, symbol, cap]);
+  const token = await deployFBContract('$ERC20Capped', [name, symbol, cap]);
 
   return { user, token, cap };
 }
 
 describe('ERC20Capped', function () {
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
   it('requires a non-zero cap', async function () {

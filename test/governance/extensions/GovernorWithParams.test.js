@@ -1,7 +1,6 @@
-const { ethers } = require('hardhat');
+const { ethers, network } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
-
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 const { GovernorHelper } = require('../../helpers/governance');
 const { VoteType } = require('../../helpers/enums');
 const { getDomain, ExtendedBallot } = require('../../helpers/eip712');
@@ -29,10 +28,9 @@ describe('GovernorWithParams', function () {
   for (const { Token, mode } of TOKENS) {
     const fixture = async () => {
       const [owner, proposer, voter1, voter2, voter3, voter4, other] = await ethers.getSigners();
-      const receiver = await ethers.deployContract('CallReceiverMock');
-
-      const token = await ethers.deployContract(Token, [tokenName, tokenSymbol, tokenName, version]);
-      const mock = await ethers.deployContract('$GovernorWithParamsMock', [name, token]);
+      const receiver = await deployFBContract('CallReceiverMock');
+      const token = await deployFBContract(Token, [tokenName, tokenSymbol, version]);
+      const mock = await deployFBContract('$GovernorWithParamsMock', [name, token]);
 
       await owner.sendTransaction({ to: mock, value });
       await token.$_mint(owner, tokenSupply);
@@ -48,7 +46,7 @@ describe('GovernorWithParams', function () {
 
     describe(`using ${Token}`, function () {
       beforeEach(async function () {
-        Object.assign(this, await loadFixture(fixture));
+        Object.assign(this, await fixture());
 
         // default proposal
         this.proposal = this.helper.setProposal(
@@ -69,177 +67,179 @@ describe('GovernorWithParams', function () {
         expect(await this.mock.votingDelay()).to.equal(votingDelay);
         expect(await this.mock.votingPeriod()).to.equal(votingPeriod);
       });
+      // TODO)): not support time interface
+      if (network.name === 'hardhat') {
+        it('nominal is unaffected', async function () {
+          await this.helper.connect(this.proposer).propose();
+          await this.helper.waitForSnapshot();
+          await this.helper.connect(this.voter1).vote({ support: VoteType.For, reason: 'This is nice' });
+          await this.helper.connect(this.voter2).vote({ support: VoteType.For });
+          await this.helper.connect(this.voter3).vote({ support: VoteType.Against });
+          await this.helper.connect(this.voter4).vote({ support: VoteType.Abstain });
+          await this.helper.waitForDeadline();
+          await this.helper.execute();
 
-      it('nominal is unaffected', async function () {
-        await this.helper.connect(this.proposer).propose();
-        await this.helper.waitForSnapshot();
-        await this.helper.connect(this.voter1).vote({ support: VoteType.For, reason: 'This is nice' });
-        await this.helper.connect(this.voter2).vote({ support: VoteType.For });
-        await this.helper.connect(this.voter3).vote({ support: VoteType.Against });
-        await this.helper.connect(this.voter4).vote({ support: VoteType.Abstain });
-        await this.helper.waitForDeadline();
-        await this.helper.execute();
+          expect(await this.mock.hasVoted(this.proposal.id, this.owner)).to.be.false;
+          expect(await this.mock.hasVoted(this.proposal.id, this.voter1)).to.be.true;
+          expect(await this.mock.hasVoted(this.proposal.id, this.voter2)).to.be.true;
+          expect(await ethers.provider.getBalance(this.mock)).to.equal(0n);
+          expect(await ethers.provider.getBalance(this.receiver)).to.equal(value);
+        });
 
-        expect(await this.mock.hasVoted(this.proposal.id, this.owner)).to.be.false;
-        expect(await this.mock.hasVoted(this.proposal.id, this.voter1)).to.be.true;
-        expect(await this.mock.hasVoted(this.proposal.id, this.voter2)).to.be.true;
-        expect(await ethers.provider.getBalance(this.mock)).to.equal(0n);
-        expect(await ethers.provider.getBalance(this.receiver)).to.equal(value);
-      });
-
-      it('Voting with params is properly supported', async function () {
-        await this.helper.connect(this.proposer).propose();
-        await this.helper.waitForSnapshot();
-
-        const weight = ethers.parseEther('7') - params.decoded[0];
-
-        await expect(
-          this.helper.connect(this.voter2).vote({
-            support: VoteType.For,
-            reason: 'no particular reason',
-            params: params.encoded,
-          }),
-        )
-          .to.emit(this.mock, 'CountParams')
-          .withArgs(...params.decoded)
-          .to.emit(this.mock, 'VoteCastWithParams')
-          .withArgs(
-            this.voter2.address,
-            this.proposal.id,
-            VoteType.For,
-            weight,
-            'no particular reason',
-            params.encoded,
-          );
-
-        expect(await this.mock.proposalVotes(this.proposal.id)).to.deep.equal([0n, weight, 0n]);
-      });
-
-      describe('voting by signature', function () {
-        it('supports EOA signatures', async function () {
-          await this.token.connect(this.voter2).delegate(this.other);
-
-          // Run proposal
-          await this.helper.propose();
+        it('Voting with params is properly supported', async function () {
+          await this.helper.connect(this.proposer).propose();
           await this.helper.waitForSnapshot();
 
-          // Prepare vote
           const weight = ethers.parseEther('7') - params.decoded[0];
-          const nonce = await this.mock.nonces(this.other);
-          const data = {
-            proposalId: this.proposal.id,
-            support: VoteType.For,
-            voter: this.other.address,
-            nonce,
-            reason: 'no particular reason',
-            params: params.encoded,
-            signature: (contract, message) =>
-              getDomain(contract).then(domain => this.other.signTypedData(domain, { ExtendedBallot }, message)),
-          };
 
-          // Vote
-          await expect(this.helper.vote(data))
+          await expect(
+            this.helper.connect(this.voter2).vote({
+              support: VoteType.For,
+              reason: 'no particular reason',
+              params: params.encoded,
+            }),
+          )
             .to.emit(this.mock, 'CountParams')
             .withArgs(...params.decoded)
             .to.emit(this.mock, 'VoteCastWithParams')
-            .withArgs(data.voter, data.proposalId, data.support, weight, data.reason, data.params);
+            .withArgs(
+              this.voter2.address,
+              this.proposal.id,
+              VoteType.For,
+              weight,
+              'no particular reason',
+              params.encoded,
+            );
 
           expect(await this.mock.proposalVotes(this.proposal.id)).to.deep.equal([0n, weight, 0n]);
-          expect(await this.mock.nonces(this.other)).to.equal(nonce + 1n);
         });
 
-        it('supports EIP-1271 signature signatures', async function () {
-          const wallet = await ethers.deployContract('ERC1271WalletMock', [this.other]);
-          await this.token.connect(this.voter2).delegate(wallet);
+        describe('voting by signature', function () {
+          it('supports EOA signatures', async function () {
+            await this.token.connect(this.voter2).delegate(this.other);
 
-          // Run proposal
-          await this.helper.propose();
-          await this.helper.waitForSnapshot();
+            // Run proposal
+            await this.helper.propose();
+            await this.helper.waitForSnapshot();
 
-          // Prepare vote
-          const weight = ethers.parseEther('7') - params.decoded[0];
-          const nonce = await this.mock.nonces(this.other);
-          const data = {
-            proposalId: this.proposal.id,
-            support: VoteType.For,
-            voter: wallet.target,
-            nonce,
-            reason: 'no particular reason',
-            params: params.encoded,
-            signature: (contract, message) =>
-              getDomain(contract).then(domain => this.other.signTypedData(domain, { ExtendedBallot }, message)),
-          };
+            // Prepare vote
+            const weight = ethers.parseEther('7') - params.decoded[0];
+            const nonce = await this.mock.nonces(this.other);
+            const data = {
+              proposalId: this.proposal.id,
+              support: VoteType.For,
+              voter: this.other.address,
+              nonce,
+              reason: 'no particular reason',
+              params: params.encoded,
+              signature: (contract, message) =>
+                getDomain(contract).then(domain => this.other.signTypedData(domain, { ExtendedBallot }, message)),
+            };
 
-          // Vote
-          await expect(this.helper.vote(data))
-            .to.emit(this.mock, 'CountParams')
-            .withArgs(...params.decoded)
-            .to.emit(this.mock, 'VoteCastWithParams')
-            .withArgs(data.voter, data.proposalId, data.support, weight, data.reason, data.params);
+            // Vote
+            await expect(this.helper.vote(data))
+              .to.emit(this.mock, 'CountParams')
+              .withArgs(...params.decoded)
+              .to.emit(this.mock, 'VoteCastWithParams')
+              .withArgs(data.voter, data.proposalId, data.support, weight, data.reason, data.params);
 
-          expect(await this.mock.proposalVotes(this.proposal.id)).to.deep.equal([0n, weight, 0n]);
-          expect(await this.mock.nonces(wallet)).to.equal(nonce + 1n);
+            expect(await this.mock.proposalVotes(this.proposal.id)).to.deep.equal([0n, weight, 0n]);
+            expect(await this.mock.nonces(this.other)).to.equal(nonce + 1n);
+          });
+
+          it('supports EIP-1271 signature signatures', async function () {
+            const wallet = await deployFBContract('ERC1271WalletMock', [this.other]);
+            await this.token.connect(this.voter2).delegate(wallet);
+
+            // Run proposal
+            await this.helper.propose();
+            await this.helper.waitForSnapshot();
+
+            // Prepare vote
+            const weight = ethers.parseEther('7') - params.decoded[0];
+            const nonce = await this.mock.nonces(this.other);
+            const data = {
+              proposalId: this.proposal.id,
+              support: VoteType.For,
+              voter: wallet.target,
+              nonce,
+              reason: 'no particular reason',
+              params: params.encoded,
+              signature: (contract, message) =>
+                getDomain(contract).then(domain => this.other.signTypedData(domain, { ExtendedBallot }, message)),
+            };
+
+            // Vote
+            await expect(this.helper.vote(data))
+              .to.emit(this.mock, 'CountParams')
+              .withArgs(...params.decoded)
+              .to.emit(this.mock, 'VoteCastWithParams')
+              .withArgs(data.voter, data.proposalId, data.support, weight, data.reason, data.params);
+
+            expect(await this.mock.proposalVotes(this.proposal.id)).to.deep.equal([0n, weight, 0n]);
+            expect(await this.mock.nonces(wallet)).to.equal(nonce + 1n);
+          });
+
+          it('reverts if signature does not match signer', async function () {
+            await this.token.connect(this.voter2).delegate(this.other);
+
+            // Run proposal
+            await this.helper.propose();
+            await this.helper.waitForSnapshot();
+
+            // Prepare vote
+            const nonce = await this.mock.nonces(this.other);
+            const data = {
+              proposalId: this.proposal.id,
+              support: VoteType.For,
+              voter: this.other.address,
+              nonce,
+              reason: 'no particular reason',
+              params: params.encoded,
+              // tampered signature
+              signature: (contract, message) =>
+                getDomain(contract)
+                  .then(domain => this.other.signTypedData(domain, { ExtendedBallot }, message))
+                  .then(signature => {
+                    const tamperedSig = ethers.toBeArray(signature);
+                    tamperedSig[42] ^= 0xff;
+                    return ethers.hexlify(tamperedSig);
+                  }),
+            };
+
+            // Vote
+            await expect(this.helper.vote(data))
+              .to.be.revertedWithCustomError(this.mock, 'GovernorInvalidSignature')
+              .withArgs(data.voter);
+          });
+
+          it('reverts if vote nonce is incorrect', async function () {
+            await this.token.connect(this.voter2).delegate(this.other);
+
+            // Run proposal
+            await this.helper.propose();
+            await this.helper.waitForSnapshot();
+
+            // Prepare vote
+            const nonce = await this.mock.nonces(this.other);
+            const data = {
+              proposalId: this.proposal.id,
+              support: VoteType.For,
+              voter: this.other.address,
+              nonce: nonce + 1n,
+              reason: 'no particular reason',
+              params: params.encoded,
+              signature: (contract, message) =>
+                getDomain(contract).then(domain => this.other.signTypedData(domain, { ExtendedBallot }, message)),
+            };
+
+            // Vote
+            await expect(this.helper.vote(data))
+              .to.be.revertedWithCustomError(this.mock, 'GovernorInvalidSignature')
+              .withArgs(data.voter);
+          });
         });
-
-        it('reverts if signature does not match signer', async function () {
-          await this.token.connect(this.voter2).delegate(this.other);
-
-          // Run proposal
-          await this.helper.propose();
-          await this.helper.waitForSnapshot();
-
-          // Prepare vote
-          const nonce = await this.mock.nonces(this.other);
-          const data = {
-            proposalId: this.proposal.id,
-            support: VoteType.For,
-            voter: this.other.address,
-            nonce,
-            reason: 'no particular reason',
-            params: params.encoded,
-            // tampered signature
-            signature: (contract, message) =>
-              getDomain(contract)
-                .then(domain => this.other.signTypedData(domain, { ExtendedBallot }, message))
-                .then(signature => {
-                  const tamperedSig = ethers.toBeArray(signature);
-                  tamperedSig[42] ^= 0xff;
-                  return ethers.hexlify(tamperedSig);
-                }),
-          };
-
-          // Vote
-          await expect(this.helper.vote(data))
-            .to.be.revertedWithCustomError(this.mock, 'GovernorInvalidSignature')
-            .withArgs(data.voter);
-        });
-
-        it('reverts if vote nonce is incorrect', async function () {
-          await this.token.connect(this.voter2).delegate(this.other);
-
-          // Run proposal
-          await this.helper.propose();
-          await this.helper.waitForSnapshot();
-
-          // Prepare vote
-          const nonce = await this.mock.nonces(this.other);
-          const data = {
-            proposalId: this.proposal.id,
-            support: VoteType.For,
-            voter: this.other.address,
-            nonce: nonce + 1n,
-            reason: 'no particular reason',
-            params: params.encoded,
-            signature: (contract, message) =>
-              getDomain(contract).then(domain => this.other.signTypedData(domain, { ExtendedBallot }, message)),
-          };
-
-          // Vote
-          await expect(this.helper.vote(data))
-            .to.be.revertedWithCustomError(this.mock, 'GovernorInvalidSignature')
-            .withArgs(data.voter);
-        });
-      });
+      }
     });
   }
 });

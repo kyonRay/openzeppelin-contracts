@@ -1,7 +1,7 @@
-const { ethers } = require('hardhat');
+const { ethers, network } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
 const { PANIC_CODES } = require('@nomicfoundation/hardhat-chai-matchers/panic');
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 
 const {
   shouldBehaveLikeERC20,
@@ -23,14 +23,14 @@ describe('ERC20', function () {
         const accounts = await ethers.getSigners();
         const [holder, recipient] = accounts;
 
-        const token = await ethers.deployContract(Token, [name, symbol]);
+        const token = await deployFBContract(Token, [name, symbol]);
         await token.$_mint(holder, initialSupply);
 
         return { accounts, holder, recipient, token };
       };
 
       beforeEach(async function () {
-        Object.assign(this, await loadFixture(fixture));
+        Object.assign(this, await fixture());
       });
 
       shouldBehaveLikeERC20(initialSupply, { forcedApproval });
@@ -63,6 +63,7 @@ describe('ERC20', function () {
 
         describe('for a non zero account', function () {
           beforeEach('minting', async function () {
+            this.initValueOfRecipient = await this.token.balanceOf(this.recipient);
             this.tx = await this.token.$_mint(this.recipient, value);
           });
 
@@ -71,7 +72,11 @@ describe('ERC20', function () {
           });
 
           it('increments recipient balance', async function () {
-            await expect(this.tx).to.changeTokenBalance(this.token, this.recipient, value);
+            if (network.name === 'hardhat') {
+              await expect(this.tx).to.changeTokenBalance(this.token, this.recipient, value);
+            } else {
+              expect(await this.token.balanceOf(this.recipient)).to.equal(this.initValueOfRecipient + value);
+            }
           });
 
           it('emits Transfer event', async function () {
@@ -97,6 +102,7 @@ describe('ERC20', function () {
           const describeBurn = function (description, value) {
             describe(description, function () {
               beforeEach('burning', async function () {
+                this.initValueOfHolder = await this.token.balanceOf(this.holder);
                 this.tx = await this.token.$_burn(this.holder, value);
               });
 
@@ -105,7 +111,11 @@ describe('ERC20', function () {
               });
 
               it('decrements holder balance', async function () {
-                await expect(this.tx).to.changeTokenBalance(this.token, this.holder, -value);
+                if (network.name === 'hardhat') {
+                  await expect(this.tx).to.changeTokenBalance(this.token, this.holder, -value);
+                } else {
+                  expect(await this.token.balanceOf(this.holder)).to.equal(this.initValueOfHolder - value);
+                }
               });
 
               it('emits Transfer event', async function () {
@@ -124,6 +134,7 @@ describe('ERC20', function () {
 
         beforeEach(async function () {
           this.totalSupply = await this.token.totalSupply();
+          this.initValueOfHolder = await this.token.balanceOf(this.holder);
         });
 
         it('from is the zero address', async function () {
@@ -131,7 +142,11 @@ describe('ERC20', function () {
           await expect(tx).to.emit(this.token, 'Transfer').withArgs(ethers.ZeroAddress, this.holder, value);
 
           expect(await this.token.totalSupply()).to.equal(this.totalSupply + value);
-          await expect(tx).to.changeTokenBalance(this.token, this.holder, value);
+          if (network.name === 'hardhat') {
+            await expect(tx).to.changeTokenBalance(this.token, this.holder, value);
+          } else {
+            expect(await this.token.balanceOf(this.holder)).to.equal(this.initValueOfHolder + value);
+          }
         });
 
         it('to is the zero address', async function () {
@@ -139,7 +154,11 @@ describe('ERC20', function () {
           await expect(tx).to.emit(this.token, 'Transfer').withArgs(this.holder, ethers.ZeroAddress, value);
 
           expect(await this.token.totalSupply()).to.equal(this.totalSupply - value);
-          await expect(tx).to.changeTokenBalance(this.token, this.holder, -value);
+          if (network.name === 'hardhat') {
+            await expect(tx).to.changeTokenBalance(this.token, this.holder, -value);
+          } else {
+            expect(await this.token.balanceOf(this.holder)).to.equal(this.initValueOfHolder - value);
+          }
         });
 
         describe('from and to are the same address', function () {

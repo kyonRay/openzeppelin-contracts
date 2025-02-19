@@ -44,11 +44,11 @@ abstract contract ReentrancyGuardTransient {
         }
 
         // Any calls to nonReentrant after this point will fail
-        REENTRANCY_GUARD_STORAGE.asBoolean().tstore(true);
+        REENTRANCY_GUARD_STORAGE.asBoolean().sstore(true);
     }
 
     function _nonReentrantAfter() private {
-        REENTRANCY_GUARD_STORAGE.asBoolean().tstore(false);
+        REENTRANCY_GUARD_STORAGE.asBoolean().sstore(false);
     }
 
     /**
@@ -56,6 +56,6 @@ abstract contract ReentrancyGuardTransient {
      * `nonReentrant` function in the call stack.
      */
     function _reentrancyGuardEntered() internal view returns (bool) {
-        return REENTRANCY_GUARD_STORAGE.asBoolean().tload();
+        return REENTRANCY_GUARD_STORAGE.asBoolean().sload();
     }
 }

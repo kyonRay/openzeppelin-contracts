@@ -1,17 +1,16 @@
-const { ethers } = require('hardhat');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 
 const { shouldSupportInterfaces } = require('./SupportsInterface.behavior');
 
 async function fixture() {
   return {
-    mock: await ethers.deployContract('$ERC165'),
+    mock: await deployFBContract('$ERC165'),
   };
 }
 
 describe('ERC165', function () {
-  beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+  before(async function () {
+    Object.assign(this, await fixture());
   });
 
   shouldSupportInterfaces();

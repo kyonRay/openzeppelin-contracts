@@ -1,6 +1,6 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../../helpers/fb-deploy-helper');
 
 const { getDomain, domainSeparator, Permit } = require('../../../helpers/eip712');
 const time = require('../../../helpers/time');
@@ -12,7 +12,7 @@ const initialSupply = 100n;
 async function fixture() {
   const [holder, spender, owner, other] = await ethers.getSigners();
 
-  const token = await ethers.deployContract('$ERC20Permit', [name, symbol, name]);
+  const token = await deployFBContract('$ERC20Permit', [name, symbol, name]);
   await token.$_mint(holder, initialSupply);
 
   return {
@@ -26,7 +26,7 @@ async function fixture() {
 
 describe('ERC20Permit', function () {
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
   it('initial nonce is 0', async function () {

@@ -1,6 +1,6 @@
-const { ethers } = require('hardhat');
+const { ethers, network } = require('hardhat');
+const { deployFBContract } = require('../helpers/fb-deploy-helper');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
 
 const { impersonate } = require('../helpers/account');
 const { getDomain, ForwardRequest } = require('../helpers/eip712');
@@ -11,9 +11,12 @@ const { shouldBehaveLikeRegularContext } = require('../utils/Context.behavior');
 async function fixture() {
   const [sender, other] = await ethers.getSigners();
 
-  const forwarder = await ethers.deployContract('ERC2771Forwarder', ['ERC2771Forwarder']);
-  const forwarderAsSigner = await impersonate(forwarder.target);
-  const context = await ethers.deployContract('ERC2771ContextMock', [forwarder]);
+  const forwarder = await deployFBContract('ERC2771Forwarder', []);
+  let forwarderAsSigner;
+  if (network.name === 'hardhat') {
+    forwarderAsSigner = await impersonate(forwarder.target);
+  }
+  const context = await deployFBContract('ERC2771ContextMock', [forwarder]);
   const domain = await getDomain(forwarder);
   const types = { ForwardRequest };
 
@@ -21,8 +24,8 @@ async function fixture() {
 }
 
 describe('ERC2771Context', function () {
-  beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+  before(async function () {
+    Object.assign(this, await fixture());
   });
 
   it('recognize trusted forwarder', async function () {
@@ -59,13 +62,14 @@ describe('ERC2771Context', function () {
 
         await expect(this.forwarder.execute(req)).to.emit(this.context, 'Sender').withArgs(this.sender);
       });
-
-      it('returns the original sender when calldata length is less than 20 bytes (address length)', async function () {
-        // The forwarder doesn't produce calls with calldata length less than 20 bytes so `this.forwarderAsSigner` is used instead.
-        await expect(this.context.connect(this.forwarderAsSigner).msgSender())
-          .to.emit(this.context, 'Sender')
-          .withArgs(this.forwarder);
-      });
+      if (network.name === 'hardhat') {
+        it('returns the original sender when calldata length is less than 20 bytes (address length)', async function () {
+          // The forwarder doesn't produce calls with calldata length less than 20 bytes so `this.forwarderAsSigner` is used instead.
+          await expect(this.context.connect(this.forwarderAsSigner).msgSender())
+            .to.emit(this.context, 'Sender')
+            .withArgs(this.forwarder);
+        });
+      }
     });
 
     describe('msgData', function () {
@@ -94,15 +98,16 @@ describe('ERC2771Context', function () {
           .withArgs(data, ...args);
       });
     });
+    if (network.name === 'hardhat') {
+      it('returns the full original data when calldata length is less than 20 bytes (address length)', async function () {
+        const data = this.context.interface.encodeFunctionData('msgDataShort');
 
-    it('returns the full original data when calldata length is less than 20 bytes (address length)', async function () {
-      const data = this.context.interface.encodeFunctionData('msgDataShort');
-
-      // The forwarder doesn't produce calls with calldata length less than 20 bytes so `this.forwarderAsSigner` is used instead.
-      await expect(await this.context.connect(this.forwarderAsSigner).msgDataShort())
-        .to.emit(this.context, 'DataShort')
-        .withArgs(data);
-    });
+        // The forwarder doesn't produce calls with calldata length less than 20 bytes so `this.forwarderAsSigner` is used instead.
+        await expect(await this.context.connect(this.forwarderAsSigner).msgDataShort())
+          .to.emit(this.context, 'DataShort')
+          .withArgs(data);
+      });
+    }
   });
 
   it('multicall poison attack', async function () {

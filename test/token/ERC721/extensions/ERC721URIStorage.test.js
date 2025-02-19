@@ -1,6 +1,6 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../../helpers/fb-deploy-helper');
 
 const { shouldSupportInterfaces } = require('../../../utils/introspection/SupportsInterface.behavior');
 
@@ -14,13 +14,13 @@ const nonExistentTokenId = 2n;
 
 async function fixture() {
   const [owner] = await ethers.getSigners();
-  const token = await ethers.deployContract('$ERC721URIStorageMock', [name, symbol]);
+  const token = await deployFBContract('$ERC721URIStorageMock', [name, symbol]);
   return { owner, token };
 }
 
 describe('ERC721URIStorage', function () {
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
   shouldSupportInterfaces(['0x49064906']);

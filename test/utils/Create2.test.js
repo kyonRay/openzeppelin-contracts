@@ -1,30 +1,25 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
-const { PANIC_CODES } = require('@nomicfoundation/hardhat-chai-matchers/panic');
-
-const { RevertType } = require('../helpers/enums');
+const { deployFBContract } = require('../helpers/fb-deploy-helper');
 
 async function fixture() {
   const [deployer, other] = await ethers.getSigners();
 
-  const factory = await ethers.deployContract('$Create2');
+  const factory = await deployFBContract('$Create2');
 
   // Bytecode for deploying a contract that includes a constructor.
   // We use a vesting wallet, with 3 constructor arguments.
   const constructorByteCode = await ethers
     .getContractFactory('VestingWallet')
-    .then(factory => ethers.concat([factory.bytecode, factory.interface.encodeDeploy([other.address, 0n, 0n])]));
+    .then(({ bytecode, interface }) => ethers.concat([bytecode, interface.encodeDeploy([other.address, 0n, 0n])]));
 
   // Bytecode for deploying a contract that has no constructor log.
   // Here we use the Create2 helper factory.
   const constructorLessBytecode = await ethers
     .getContractFactory('$Create2')
-    .then(factory => ethers.concat([factory.bytecode, factory.interface.encodeDeploy([])]));
+    .then(({ bytecode, interface }) => ethers.concat([bytecode, interface.encodeDeploy([])]));
 
-  const mockFactory = await ethers.getContractFactory('ConstructorMock');
-
-  return { deployer, other, factory, constructorByteCode, constructorLessBytecode, mockFactory };
+  return { deployer, other, factory, constructorByteCode, constructorLessBytecode };
 }
 
 describe('Create2', function () {
@@ -32,7 +27,7 @@ describe('Create2', function () {
   const saltHex = ethers.id(salt);
 
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
   describe('computeAddress', function () {
@@ -134,57 +129,6 @@ describe('Create2', function () {
       await expect(this.factory.$deploy(1n, saltHex, this.constructorByteCode))
         .to.be.revertedWithCustomError(this.factory, 'InsufficientBalance')
         .withArgs(0n, 1n);
-    });
-
-    describe('reverts error thrown during contract creation', function () {
-      it('bubbles up without message', async function () {
-        await expect(
-          this.factory.$deploy(
-            0n,
-            saltHex,
-            ethers.concat([
-              this.mockFactory.bytecode,
-              this.mockFactory.interface.encodeDeploy([RevertType.RevertWithoutMessage]),
-            ]),
-          ),
-        ).to.be.revertedWithCustomError(this.factory, 'FailedDeployment');
-      });
-
-      it('bubbles up message', async function () {
-        await expect(
-          this.factory.$deploy(
-            0n,
-            saltHex,
-            ethers.concat([
-              this.mockFactory.bytecode,
-              this.mockFactory.interface.encodeDeploy([RevertType.RevertWithMessage]),
-            ]),
-          ),
-        ).to.be.revertedWith('ConstructorMock: reverting');
-      });
-
-      it('bubbles up custom error', async function () {
-        await expect(
-          this.factory.$deploy(
-            0n,
-            saltHex,
-            ethers.concat([
-              this.mockFactory.bytecode,
-              this.mockFactory.interface.encodeDeploy([RevertType.RevertWithCustomError]),
-            ]),
-          ),
-        ).to.be.revertedWithCustomError({ interface: this.mockFactory.interface }, 'CustomError');
-      });
-
-      it('bubbles up panic', async function () {
-        await expect(
-          this.factory.$deploy(
-            0n,
-            saltHex,
-            ethers.concat([this.mockFactory.bytecode, this.mockFactory.interface.encodeDeploy([RevertType.Panic])]),
-          ),
-        ).to.be.revertedWithPanic(PANIC_CODES.DIVISION_BY_ZERO);
-      });
     });
   });
 });

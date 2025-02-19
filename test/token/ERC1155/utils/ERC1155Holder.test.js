@@ -1,6 +1,6 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../../helpers/fb-deploy-helper');
 
 const { shouldSupportInterfaces } = require('../../../utils/introspection/SupportsInterface.behavior');
 
@@ -11,8 +11,8 @@ const data = '0x12345678';
 async function fixture() {
   const [owner] = await ethers.getSigners();
 
-  const token = await ethers.deployContract('$ERC1155', ['https://token-cdn-domain/{id}.json']);
-  const mock = await ethers.deployContract('$ERC1155Holder');
+  const token = await deployFBContract('$ERC1155', ['https://token-cdn-domain/{id}.json']);
+  const mock = await deployFBContract('$ERC1155Holder');
 
   await token.$_mintBatch(owner, ids, values, '0x');
 
@@ -21,7 +21,7 @@ async function fixture() {
 
 describe('ERC1155Holder', function () {
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
   shouldSupportInterfaces(['ERC1155Receiver']);

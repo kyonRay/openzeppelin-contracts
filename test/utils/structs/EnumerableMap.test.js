@@ -1,5 +1,4 @@
-const { ethers } = require('hardhat');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
+const { deployFBContract } = require('../../helpers/fb-deploy-helper');
 
 const { mapValues } = require('../../helpers/iterate');
 const { generators } = require('../../helpers/random');
@@ -11,7 +10,7 @@ const { shouldBehaveLikeMap } = require('./EnumerableMap.behavior');
 TYPES.unshift(formatType('bytes32', 'bytes32'));
 
 async function fixture() {
-  const mock = await ethers.deployContract('$EnumerableMap');
+  const mock = await deployFBContract('$EnumerableMap');
   const env = Object.fromEntries(
     TYPES.map(({ name, keyType, valueType }) => [
       name,
@@ -49,7 +48,7 @@ async function fixture() {
 
 describe('EnumerableMap', function () {
   beforeEach(async function () {
-    Object.assign(this, await loadFixture(fixture));
+    Object.assign(this, await fixture());
   });
 
   for (const { name } of TYPES) {
